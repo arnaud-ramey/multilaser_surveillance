@@ -35,14 +35,17 @@ inline void StringSplit(const std::string & str, const std::string & delim,
 } // end StringSplit();
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 class LiteObstacleMap {
 public:
   LiteObstacleMap() {}
 
+  //////////////////////////////////////////////////////////////////////////////
+
   template<class Pt2>
   bool create(const std::vector<Pt2> & obstacles,
-              double pix2m = .05) {
+              double pix2m = 0.05) { // 5 cm per pixel
     unsigned int npts = obstacles.size();
     if (obstacles.empty()) {
       printf("LiteObstacleMap::create(): empty scan!\n");
@@ -74,6 +77,8 @@ public:
     return true;
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+
   bool inflate(const double inflation_radius) {
     if (_map.empty()) {
       printf("LiteObstacleMap::inflate(): empty map!\n");
@@ -82,16 +87,19 @@ public:
     return true;
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+
   inline bool is_free(const double & x, const double & y) {
     if (x <= _xmin || x >= _xmax || y <= _ymin || y >= _ymax)
       return false; // out of bounds
     return (_map.at<uchar>(m2pix(x, y)) == 0);
   }
-
   template<class Pt2f>
   inline bool is_free(const Pt2f & pt) {
     return is_free(pt.x, pt.y);
   }
+
+  //////////////////////////////////////////////////////////////////////////////
 
 protected:
   template<class Pt2f>
@@ -103,15 +111,19 @@ protected:
                       (y - _ymin) * _pix2m);
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
   double _xmin, _ymin, _xmax, _ymax, _pix2m, _m2pix;
   cv::Mat1b _map;
 }; // end class LiteObstacleMap
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 template<class Pt2>
 class MultiLaserSurveillance {
-protected:
+public:
   typedef std::vector<Pt2> Scan;
   typedef std::vector<Pt2> Map;
   typedef std::vector<Pt2> OutlierPtList;
@@ -121,8 +133,18 @@ protected:
     Pt2 pos; // meters
     double orien, cosorien, sinorien; // radians
     Scan _last_scan; // in map coordinates
-    OutlierPtList _outlier_list;
+    OutlierPtList _outliers;
   };
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // ctor
+  MultiLaserSurveillance() {
+    _need_recompute_outliers = true;
+    _need_recompute_scan = true;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
 
   void add_device(const Pt2& pos, const double & orien) {
     DEBUG_PRINT("add_device( (%g, %g), %g)\n", pos.x, pos.y, orien);
@@ -134,6 +156,8 @@ protected:
     _devices.push_back(d);
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+
   bool fine_tune_devices(const Map & map) {
     for (unsigned int i = 0; i < ndevices(); ++i) {
       // TODO
@@ -141,47 +165,87 @@ protected:
     return false; // failure
   } // end fine_tune_devices()
 
+  //////////////////////////////////////////////////////////////////////////////
+
   bool update_scan(unsigned int & device_idx,
                    const Scan & scan) {
     if (device_idx >= ndevices()) {
       printf("Error: device_idx %i > ndevices %i\n", device_idx, ndevices());
       return false;
     }
+    // compute obstacle map if not done yet and possible
+
+
+    // otherwise find outliers
+    _need_recompute_outliers = true;
+    _need_recompute_scan = true;
     Device* d = &(_devices[device_idx]);
-    // find outliers
-    d->_outlier_list.clear();
+    d->_outliers.clear();
     unsigned int npts = scan.size();
+    d->_last_scan.resize(npts);
     for (unsigned int i = 0; i < npts; ++i) {
-    // convert to map frame
+      // convert to map frame
       double x = scan[i].x, y = scan[i].y;
-      double xw = d->pos.x + (d->cosorien * x + d->sinorien * y);
-      double yw = d->pos.y + (d->sinorien * x - d->cosorien * y);
+      d->_last_scan[i].x = d->pos.x + (d->cosorien * x + d->sinorien * y);
+      d->_last_scan[i].y = d->pos.y + (d->sinorien * x - d->cosorien * y);
       // check if in map
-      if (_obstacle_map.is_free(xw, yw)) {
-        Pt2 outlier;
-        outlier.x = xw;
-        outlier.y = yw;
-        d->_outlier_list.push_back(outlier);
-      }
+      if (_obstacle_map.is_free(d->_last_scan[i]))
+        d->_outliers.push_back(d->_last_scan[i]);
     } // end for i
     return true;
   }
 
-  OutlierPtList retrieve_outliers() {
+  //////////////////////////////////////////////////////////////////////////////
 
+protected:
+  bool recompute_outliers() {
+    if (!_need_recompute_outliers)
+      return false;
+    _need_recompute_outliers = false;
+    // compute size
+    unsigned int size = 0;
+    for (unsigned int i = 0; i < ndevices(); ++i)
+      size += _devices[i]._outliers.size();
+    _outliers.clear();
+    _outliers.reserve(size);
+    for (unsigned int i = 0; i < ndevices(); ++i) {
+      Device* d = &(_devices[i]);
+      std::copy(d->_outliers.begin(), d->_outliers.end(), std::back_inserter(_outliers));
+    } // end for i
+    return true;
   }
 
-  Scan retrieve_global_scan() {
+  //////////////////////////////////////////////////////////////////////////////
 
+  bool recompute_scan() {
+    if (!_need_recompute_scan)
+      return false;
+    _need_recompute_scan = false;
+    // compute size
+    unsigned int size = 0;
+    for (unsigned int i = 0; i < ndevices(); ++i)
+      size += _devices[i]._last_scan.size();
+    _scan.clear();
+    _scan.reserve(size);
+    for (unsigned int i = 0; i < ndevices(); ++i) {
+      Device* d = &(_devices[i]);
+      std::copy(d->_last_scan.begin(), d->_last_scan.end(), std::back_inserter(_scan));
+    } // end for i
+    return true;
   }
 
+  //////////////////////////////////////////////////////////////////////////////
 
   inline unsigned int ndevices() const {
     return _devices.size();
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
   LiteObstacleMap _obstacle_map;
-  Scan _buffer;
+  Scan _outliers, _scan;
+  bool _need_recompute_outliers, _need_recompute_scan;
   std::vector<Device> _devices;
 }; // end class MultiLaserSurveillance
 

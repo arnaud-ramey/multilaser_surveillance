@@ -54,6 +54,7 @@ static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & lase
 } // end convert_sensor_data_to_xy()
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 class ROSMultiLaserSurveillance : public MultiLaserSurveillance<Pt2> {
 public:
@@ -112,6 +113,8 @@ public:
     _marker.id = 0;
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+
   void scan_cb(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
                unsigned int device_idx) {
     // DEBUG_PRINT("scan_cb(%i)\n", device_idx);
@@ -119,6 +122,20 @@ public:
     update_scan(device_idx, _buffer);
     publish_devices_as_markers();
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  void publish_outliers_as_markers() {
+    recompute_outliers();
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  void publish_scan_as_markers() {
+    recompute_scan();
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
 
   void publish_devices_as_markers() {
     if (_last_vis_pub.getTimeSeconds() < 1) // 1 Hz
@@ -146,6 +163,9 @@ public:
       _vis_pub.publish( _marker );
     } // end for i
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
   Scan _buffer;
   ros::NodeHandle _nh_public, _nh_private;
