@@ -160,7 +160,7 @@ protected:
       if (_obstacle_map.is_free(xw, yw)) {
         Pt2 outlier;
         outlier.x = xw;
-        outlier.Y = Yw;
+        outlier.y = yw;
         d->_outlier_list.push_back(outlier);
       }
     } // end for i
