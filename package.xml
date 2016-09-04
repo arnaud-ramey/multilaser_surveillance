@@ -10,8 +10,8 @@
   <license>LGPLv3</license>
   <!-- dependencies -->
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>cv_bridge</depend>
   <depend>roscpp</depend>
-  <depend>nav_msgs</depend>
   <depend>tf</depend>
 
   <export>
