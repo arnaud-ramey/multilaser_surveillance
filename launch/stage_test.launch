@@ -1,0 +1,36 @@
+<launch>
+<!-- do not use Linux wall time but a simulated time -->
+<param name="/use_sim_time" value="true"/>
+
+<!-- find /opt/ros/*/share/stage* -name "*.world" -->
+<node pkg="stage_ros" type="stageros" name="stage" output="screen" required="true"
+  args="$(find multilaser_surveillance)/data/simple_4corners2.world" />
+<!--
+  args="/opt/ros/kinetic/share/stage/worlds/pioneer_walle.world" />
+  args="/opt/ros/kinetic/share/stage_ros/world/willow-erratic.world" />
+  args="/opt/ros/kinetic/share/stage/worlds/simple.world" />
+-->
+
+<!-- TF between the floor and the kinect -->
+<node pkg="tf" type="static_transform_publisher" name="laser0tf"
+      args="-7.6 -7.6 0   0.785 0 0   map  robot_0/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser1tf"
+      args=" 7.6  7.6 0   3.927 0 0   map  robot_1/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser2tf"
+      args=" 7.6 -7.6 0   2.356 0 0   map  robot_2/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser3tf"
+      args="-7.6  7.6 0   5.498 0 0   map  robot_3/odom   100"/>
+
+<node pkg="multilaser_surveillance" type="multilaser_surveillance.exe"
+  name="mls" required="true" output="screen"
+  args="_scan_topics:=/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan
+        _frames:=/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom" />
+
+
+<!-- rviz
+$ rosrun image_view image_view image:=/robot_4/image
+-->
+<node pkg="rviz" type="rviz" name="rviz"
+      args="--display-config $(find multilaser_surveillance)/config/multilaser_surveillance.rviz" />
+</launch>
+
