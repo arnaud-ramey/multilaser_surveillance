@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include "timer.h"
 
 //#define DEBUG_PRINT(...)   {}
@@ -46,6 +47,7 @@ public:
   template<class Pt2>
   bool create(const std::vector<Pt2> & obstacles,
               double pix2m = 0.05) { // 5 cm per pixel
+    Timer timer;
     unsigned int npts = obstacles.size();
     if (obstacles.empty()) {
       printf("LiteObstacleMap::create(): empty scan!\n");
@@ -68,22 +70,39 @@ public:
     _pix2m = pix2m;
     _m2pix = 1./pix2m;
     int w = 1 + (_xmax - _xmin) * _m2pix, h = 1 + (_ymax - _ymin) * _m2pix;
-    _map.create(w, h);
+    DEBUG_PRINT("LiteObstacleMap::create(): bounds (%g,%g)->(%g,%g), dims(%i,%i)\n",
+                _xmin, _ymin, _xmax, _ymax, w, h);
+    _map.create(h, w);
     _map.setTo(0);
     // fill map
     for (unsigned int i = 0; i < npts; ++i) {
       _map( m2pix( obstacles[i] ) ) = 255;
     } // end for i
+//    cv::imshow("LiteObstacleMap", _map);
+//    cv::waitKey(500);
+    timer.printTime("creating LiteObstacleMap");
     return true;
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  bool inflate(const double inflation_radius) {
+  //! inflation_radius in meters
+  bool inflate(const double & inflation_radius) {
     if (_map.empty()) {
       printf("LiteObstacleMap::inflate(): empty map!\n");
       return false;
     }
+    double radpix = inflation_radius * _m2pix;
+    if (radpix == 0)
+      return true;
+    // http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
+    int dilation_type = cv::MORPH_RECT;
+    cv::Mat element = cv::getStructuringElement( dilation_type,
+                                                 cv::Size( 2*radpix + 1, 2*radpix+1 ),
+                                                 cv::Point( radpix, radpix ) );
+    cv::dilate(_map, _map, element);
+//    cv::imshow("LiteObstacleMap-inflated", _map);
+//    cv::waitKey(500);
     return true;
   }
 
@@ -101,14 +120,14 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
-protected:
-  template<class Pt2f>
-  inline cv::Point m2pix(const Pt2f p) {
-    return cv::Point(p.x, p.y);
-  }
+//protected:
   inline cv::Point m2pix(const double & x, const double & y) {
     return cv::Point( (x - _xmin) * _m2pix,
-                      (y - _ymin) * _pix2m);
+                      (y - _ymin) * _m2pix);
+  }
+  template<class Pt2f>
+  inline cv::Point m2pix(const Pt2f p) {
+    return m2pix(p.x, p.y);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -127,21 +146,37 @@ public:
   typedef std::vector<Pt2> Scan;
   typedef std::vector<Pt2> Map;
   typedef std::vector<Pt2> OutlierPtList;
+  enum Status {
+    STATUS_MAP_NOT_DONE = 0,
+    STATUS_MAP_DONE = 1
+  };
 
   class Device {
   public:
-    Pt2 pos; // meters, in world coordinates
-    double orien, cosmorien, sinmorien; // radians
-    Scan _last_scan; // in map coordinates
-    OutlierPtList _outliers;
+    Device(const std::string & name,
+           const Pt2 & pos,
+           const double & orien) :
+      _name(name), _pos(pos), _orien(orien), _map_nscans(0) {
+      _cosorien = cos(orien);
+      _sinorien = sin(orien);
+    }
+
     Pt2 device2world(const Pt2 & pt) {
       Pt2 tmp, ans;
-      tmp.x = cosmorien * pt.x + sinmorien * pt.y;
-      tmp.y = sinmorien * pt.x - cosmorien * pt.y;
-      ans.x = tmp.x + pos.x;
-      ans.y = tmp.y + pos.y;
+      tmp.x = _cosorien * pt.x - _sinorien * pt.y;
+      tmp.y = _sinorien * pt.x + _cosorien * pt.y;
+      ans.x = tmp.x + _pos.x;
+      ans.y = tmp.y + _pos.y;
       return ans;
     }
+
+    std::string _name;
+    Pt2 _pos; // meters, in world coordinates
+    double _orien, _cosorien, _sinorien; // radians
+    Scan _last_scan; // in map coordinates
+    OutlierPtList _outliers;
+    Scan _map_scans; // aggregated map scans to build the global map
+    unsigned int _map_nscans; // number of aggregated map scans in _map_scans
   };
 
   //////////////////////////////////////////////////////////////////////////////
@@ -150,17 +185,14 @@ public:
   MultiLaserSurveillance() {
     _need_recompute_outliers = true;
     _need_recompute_scan = true;
+    _status = STATUS_MAP_NOT_DONE;
+    _map_total_nscans = 0;
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  void add_device(const Pt2& pos, const double & orien) {
-    DEBUG_PRINT("add_device( (%g, %g), %g)\n", pos.x, pos.y, orien);
-    Device d;
-    d.pos = pos;
-    d.orien = orien;
-    d.cosmorien = cos(orien);
-    d.sinmorien = sin(orien);
+  void add_device(const Device & d) {
+    DEBUG_PRINT("add_device( (%g, %g), %g)\n", d._pos.x, d._pos.y, d._orien);
     _devices.push_back(d);
   }
 
@@ -175,28 +207,54 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
+  static const unsigned int MAP_NSCANS_PER_DEVICE = 10;
+
   bool update_scan(unsigned int & device_idx,
                    const Scan & scan) {
     if (device_idx >= ndevices()) {
       printf("Error: device_idx %i > ndevices %i\n", device_idx, ndevices());
       return false;
     }
-    // compute obstacle map if not done yet and possible
-    // TODO
+    // DEBUG_PRINT("update_scan(%i)\n", device_idx);
 
-    // otherwise find outliers
     _need_recompute_outliers = true;
     _need_recompute_scan = true;
     Device* d = &(_devices[device_idx]);
-    d->_outliers.clear();
     unsigned int npts = scan.size();
     d->_last_scan.resize(npts);
-    for (unsigned int i = 0; i < npts; ++i) {
-      // convert to map frame
+    // convert to map frame
+    for (unsigned int i = 0; i < npts; ++i)
       d->_last_scan[i] = d->device2world(scan[i]);
-      // check if in map
-      if (_obstacle_map.is_free(d->_last_scan[i]))
-        d->_outliers.push_back(d->_last_scan[i]);
+
+    // aggregate scan if map not done
+    if (_status == STATUS_MAP_NOT_DONE) {
+      bool need_add = (d->_map_nscans < MAP_NSCANS_PER_DEVICE);
+      if (!need_add) // nothing to do
+        return true;
+      std::copy(d->_last_scan.begin(), d->_last_scan.end(), std::back_inserter(d->_map_scans));
+      ++ d->_map_nscans;
+      ++_map_total_nscans;
+      if (d->_map_nscans < MAP_NSCANS_PER_DEVICE)
+        return true;
+      DEBUG_PRINT("Device '%s': got the required %i scans.\n",
+                  d->_name.c_str(), MAP_NSCANS_PER_DEVICE);
+      // compute obstacle map if not done yet and possible
+      if (_map_total_nscans == MAP_NSCANS_PER_DEVICE * ndevices())
+        return recompute_map();
+      return true;
+    } // end if (_status == STATUS_MAP_NOT_DONE)
+
+    // otherwise find outliers
+    // status == STATUS_MAP_DONE
+    // check if in map
+    // DEBUG_PRINT("Device '%s': checking for outliers\n", d->_name.c_str());
+    d->_outliers.clear();
+    for (unsigned int i = 0; i < npts; ++i) {
+      Pt2 & pt = d->_last_scan[i];
+      if (_obstacle_map.is_free(pt)) {
+        // DEBUG_PRINT("Found outlier (%g, %g)!\n", pt.x, pt.y);
+        d->_outliers.push_back(pt);
+      }
     } // end for i
     return true;
   }
@@ -226,6 +284,7 @@ protected:
   bool recompute_scan_if_needed() {
     if (!_need_recompute_scan)
       return false;
+    // DEBUG_PRINT("recompute_scan_if_needed()\n");
     _need_recompute_scan = false;
     // compute size
     unsigned int size = 0;
@@ -242,9 +301,31 @@ protected:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  inline unsigned int ndevices() const {
-    return _devices.size();
+  bool recompute_map() {
+    DEBUG_PRINT("Recomputing map...\n");
+    // compute size
+    unsigned int size = 0;
+    for (unsigned int i = 0; i < ndevices(); ++i)
+      size += _devices[i]._map_scans.size();
+    std::vector<Pt2> map_scans;
+    map_scans.reserve(size);
+    for (unsigned int i = 0; i < ndevices(); ++i) {
+      Device* d = &(_devices[i]);
+      std::copy(d->_map_scans.begin(), d->_map_scans.end(), std::back_inserter(map_scans));
+    } // end for i
+    // compute real map
+    if (!_obstacle_map.create(map_scans)
+        || !_obstacle_map.inflate(0.10)) {
+      printf("Map creating failed!\n");
+      return false;
+    }
+    _status = STATUS_MAP_DONE;
+    return true;
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  inline unsigned int ndevices() const { return _devices.size(); }
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
@@ -252,7 +333,9 @@ protected:
   LiteObstacleMap _obstacle_map;
   Scan _outliers, _scan;
   bool _need_recompute_outliers, _need_recompute_scan;
+  unsigned int _map_total_nscans;
   std::vector<Device> _devices;
+  Status _status;
 }; // end class MultiLaserSurveillance
 
 #endif // _WANDERER_H_

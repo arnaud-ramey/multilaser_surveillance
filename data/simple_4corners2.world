@@ -6,7 +6,7 @@ define pioneer_base position
   drive "diff"       # Differential steering model.
   gui_nose 1                    # Draw a nose on the robot so we can see which way it points
   obstacle_return 1             # Can hit things.
-  ranger_return 0.5              # reflects sonar beams
+  ranger_return 0.500              # reflects sonar beams
   blob_return 1                 # Seen by blobfinders
   fiducial_return 1             # Seen as "1" fiducial finders
 
@@ -27,10 +27,10 @@ define pioneer_base position
 define pioneer2dx_base_no_sonar pioneer_base
 (
   # actual size
-  size [0.44 0.38 0.22] # sizes from MobileRobots' web site
+  size [0.440 0.380 0.220] # sizes from MobileRobots' web site
 
   # the pioneer's center of rotation is offset from its center of area
-  origin [-0.04 0 0 0]
+  origin [-0.040 0.000 0.000 0.000]
 
   # draw a nose on the robot so we can see which way it points
   gui_nose 1
@@ -71,7 +71,7 @@ define sickcommon ranger
     color_rgba [ 0 0 1 0.15 ]
   )
   color "blue"
-  size [ 0.156 0.155 0.19 ] # dimensions from LMS200 data sheet
+  size [ 0.156 0.155 0.190 ] # dimensions from LMS200 data sheet
 )
 
 define sick sickcommon
@@ -130,9 +130,9 @@ define fancysick sickcommon
 
 # a fake robot to mount the SICK on
 define sickmount position (
-  size [0 0 0]
+  size [0.000 0.000 0.000]
   fancysick(
-    pose [ 0 0 0 0 ]
+    pose [ 0.000 0.000 0.000 0.000 ]
     color "yellow"
   )
 )
@@ -164,10 +164,10 @@ interval_sim 100  # simulation timestep in milliseconds
 # configure the GUI window
 window
 (
-  size [ 635.000 666.000 ] # in pixels
-  scale 36.995   # pixels per meter
-  center [ -0.040  -0.274 ]
-  rotate [ 0  0 ]
+  size [ 681 744 ] # in pixels
+  scale 30.574   # pixels per meter
+  center [ 0.122  0.037 ]
+  rotate [ 27.500  -16.000 ]
 
   show_data 1              # 1=on 0=off
 )
@@ -177,22 +177,22 @@ floorplan
 (
   name "cave"
   size [16.000 16.000 0.800]
-  pose [0 0 0 0]
+  pose [0.000 0.000 0.000 0.000]
   bitmap "bitmaps/cave.png"
 )
 
-sickmount( pose [ -7.6  -7.6  0  45  ] ) # left bottom
-sickmount( pose [  7.6   7.6  0  225 ] ) # right top
-sickmount( pose [  4  -5  0  135 ] ) # right bottom
-sickmount( pose [ -7.6   7.6  0  315 ] ) # left top
+sickmount( pose [ -7.600  -7.600  0.000  45.000  ] ) # left bottom
+sickmount( pose [  7.600   7.600  0.000  -135.000 ] ) # right top
+sickmount( pose [  4.000  -5.000  0.000  135.000 ] ) # right bottom
+sickmount( pose [ -7.600   7.600  0.000  -45.000 ] ) # left top
 
 # throw in a robot
 pioneer2dx_no_sonar
 (
   # can refer to the robot by this name
   name "r0"
-  pose [ -9 -7 0 45 ]
-  fancysick(pose [ 0.25 0 -0.2 0.000 ])
+  pose [ -9.607 -7.152 0.000 45.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
   camera
   (
     # laser properties
@@ -202,7 +202,7 @@ pioneer2dx_no_sonar
     pantilt [ 0.0 0.0 ]
 
     # model properties
-    size [ 0.1 0.07 0.05 ]
+    size [ 0.100 0.070 0.050 ]
     color "black"
     watts 100.0 # TODO find watts for sony pan-tilt camera
   )

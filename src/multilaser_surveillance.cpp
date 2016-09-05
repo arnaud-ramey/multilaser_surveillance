@@ -30,6 +30,7 @@
 #include <sensor_msgs/LaserScan.h>
 #include <sensor_msgs/PointCloud.h>
 #include <visualization_msgs/Marker.h>
+#include <nav_msgs/OccupancyGrid.h>
 
 typedef geometry_msgs::Point32 Pt2;
 
@@ -40,16 +41,28 @@ template<class _Pt2>
 static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & laser_msg,
                                              std::vector<_Pt2> & out_vector) {
   out_vector.clear();
-  out_vector.reserve(laser_msg.ranges.size());
+  unsigned int npts = laser_msg.ranges.size();
+  if (laser_msg.intensities.size() != npts) {
+    printf("Scan size %i and intensity size %i don't match!\n",
+           npts, (int) laser_msg.intensities.size());
+    return;
+  }
+  out_vector.reserve(npts);
   const float* curr_range = &(laser_msg.ranges[0]);
-  float curr_angle = laser_msg.angle_min;
-  for (unsigned int idx = 0; idx < laser_msg.ranges.size(); ++idx) {
+  const float* curr_intensity = &(laser_msg.intensities[0]);
+  float curr_angle = laser_msg.angle_min,
+      min_range = laser_msg.range_min,
+      max_range = laser_msg.range_max;
+  for (unsigned int idx = 0; idx < npts; ++idx) {
     //maggieDebug2("idx:%i, curr_range:%g", idx, *curr_range);
-    _Pt2 pt;
-    pt.x = *curr_range * cos(curr_angle);
-    pt.y = *curr_range * sin(curr_angle);
-    out_vector.push_back(pt);
+    if (*curr_range > min_range && *curr_range < max_range) {
+      _Pt2 pt;
+      pt.x = *curr_range * cos(curr_angle);
+      pt.y = *curr_range * sin(curr_angle);
+      out_vector.push_back(pt);
+    }
     ++curr_range;
+    ++curr_intensity;
     curr_angle += laser_msg.angle_increment;
   } // end loop idx
 } // end convert_sensor_data_to_xy()
@@ -96,7 +109,7 @@ public:
       tf::Vector3 pv = transform.getOrigin();
       Pt2 p; p.x = pv[0]; p.y = pv[1];
       tf::Quaternion q = transform.getRotation();
-      add_device(p, tf::getYaw(q));
+      add_device(MultiLaserSurveillance::Device(scan_topics[i], p, tf::getYaw(q)));
     } // end for i
 
     // create subscribers
@@ -110,20 +123,22 @@ public:
     }
 
     // create publishers
-    _markers_pub = _nh_private.advertise<visualization_msgs::Marker>( "markers", 1 );
-    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 1 );
+    _map_pub = _nh_private.advertise<nav_msgs::OccupancyGrid>( "map", 1 );
+    _marker_pub = _nh_private.advertise<visualization_msgs::Marker>( "marker", 1 );
     _outliers_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "outliers", 1 );
+    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 1 );
+    _map_msg.header = _marker_msg.header;
     _marker_msg.header.frame_id = _static_frame;
-    _scan_msg.header = _marker_msg.header;
-    _outliers_msg.header = _marker_msg.header;
     _marker_msg.id = 0;
+    _outliers_msg.header = _marker_msg.header;
+    _scan_msg.header = _marker_msg.header;
   }
 
 protected:
   inline geometry_msgs::Point Pt2ToPoint(const Pt2 & pt) {
     geometry_msgs::Point out;
-    out.x = pt.x; 
-    out.y = pt.y; 
+    out.x = pt.x;
+    out.y = pt.y;
     return out;
   }
 
@@ -132,17 +147,20 @@ protected:
   void scan_cb(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
                unsigned int device_idx) {
     // DEBUG_PRINT("scan_cb(%i)\n", device_idx);
+    Scan _buffer;
     convert_sensor_data_to_xy(*scan_msg, _buffer);
     update_scan(device_idx, _buffer);
     publish_outliers();
     publish_scan();
+    publish_map();
     publish_devices_as_markers();
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
   void publish_outliers() {
-    if (_outliers_pub.getNumSubscribers() == 0
+    if (_status == STATUS_MAP_NOT_DONE
+        || _outliers_pub.getNumSubscribers() == 0
         || _outliers_timer.getTimeSeconds() < .01) // 100 Hz
       return;
     _outliers_timer.reset();
@@ -168,12 +186,11 @@ protected:
   //////////////////////////////////////////////////////////////////////////////
 
   void publish_devices_as_markers() {
-    if (_markers_pub.getNumSubscribers() == 0
-        || _markers_timer.getTimeSeconds() < 1) // 1 Hz
+    if (_marker_pub.getNumSubscribers() == 0
+        || _marker_timer.getTimeSeconds() < 1) // 1 Hz
       return;
-    DEBUG_PRINT("publish_devices_as_markers(%g)\n",
-                _markers_timer.getTimeSeconds());
-    _markers_timer.reset();
+    //DEBUG_PRINT("publish_devices_as_markers()\n");
+    _marker_timer.reset();
     _marker_msg.ns = "devices";
     _marker_msg.header.stamp = ros::Time::now();
     _marker_msg.type = visualization_msgs::Marker::ARROW;
@@ -189,23 +206,54 @@ protected:
     for (unsigned int i = 0; i < ndevices(); ++i) {
       Device* d = &(_devices[i]);
       _marker_msg.id = i; // unique identifier
-      _marker_msg.pose.position = Pt2ToPoint(d->pos);
-      _marker_msg.pose.orientation = tf::createQuaternionMsgFromYaw(d->orien);
-      _markers_pub.publish( _marker_msg );
+      _marker_msg.pose.position = Pt2ToPoint(d->_pos);
+      _marker_msg.pose.orientation = tf::createQuaternionMsgFromYaw(d->_orien);
+      _marker_pub.publish( _marker_msg );
     } // end for i
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  void publish_map() {
+    if (_status == STATUS_MAP_NOT_DONE
+        || _map_pub.getNumSubscribers() == 0
+        || _map_timer.getTimeSeconds() < 1) // 1 Hz
+      return;
+    _map_timer.reset();
+    // DEBUG_PRINT("publish_map()\n");
+    if (_map_msg.info.height == 0) { //create map
+      int w = _obstacle_map._map.cols, h = _obstacle_map._map.rows;
+      _map_msg.info.map_load_time = ros::Time::now();
+      _map_msg.info.origin.position.x = _obstacle_map._xmin;
+      _map_msg.info.origin.position.y = _obstacle_map._ymin;
+      _map_msg.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
+      _map_msg.info.resolution = _obstacle_map._pix2m;
+      _map_msg.info.width = w;
+      _map_msg.info.height = h;
+      _map_msg.data.resize(w * h, 0); // free
+      for (int row = 0; row < h; ++row) {
+        const uchar* data = _obstacle_map._map.ptr<uchar>(row);
+        for (int col = 0; col < w; ++col) {
+          if (data[col])
+          _map_msg.data[col + row * w] = 100; // occupied
+        } // end loop col
+      } // end loop row
+    }
+    _map_msg.header.stamp = ros::Time::now();
+    _map_pub.publish( _map_msg );
   }
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
   std::string _static_frame;
-  Scan _buffer;
   ros::NodeHandle _nh_public, _nh_private;
   std::vector<ros::Subscriber> _scan_subs;
-  ros::Publisher _markers_pub, _scan_pub, _outliers_pub;
-  Timer _markers_timer, _scan_timer, _outliers_timer;
+  ros::Publisher _marker_pub, _scan_pub, _outliers_pub, _map_pub;
+  Timer _marker_timer, _scan_timer, _outliers_timer, _map_timer;
   visualization_msgs::Marker _marker_msg;
   sensor_msgs::PointCloud _scan_msg, _outliers_msg;
+  nav_msgs::OccupancyGrid _map_msg;
 }; // end class ROSMultiLaserSurveillance
 
 ////////////////////////////////////////////////////////////////////////////////
