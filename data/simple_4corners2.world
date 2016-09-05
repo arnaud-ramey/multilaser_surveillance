@@ -183,7 +183,7 @@ floorplan
 
 sickmount( pose [ -7.6  -7.6  0  45  ] ) # left bottom
 sickmount( pose [  7.6   7.6  0  225 ] ) # right top
-sickmount( pose [  7.6  -7.6  0  135 ] ) # right bottom
+sickmount( pose [  4  -5  0  135 ] ) # right bottom
 sickmount( pose [ -7.6   7.6  0  315 ] ) # left top
 
 # throw in a robot

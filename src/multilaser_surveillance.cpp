@@ -28,9 +28,10 @@
 #include <tf/transform_listener.h>
 // ROS msg
 #include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/PointCloud.h>
 #include <visualization_msgs/Marker.h>
 
-typedef geometry_msgs::Point Pt2;
+typedef geometry_msgs::Point32 Pt2;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -60,6 +61,7 @@ class ROSMultiLaserSurveillance : public MultiLaserSurveillance<Pt2> {
 public:
   ROSMultiLaserSurveillance() : _nh_private("~") {
     // retrieve scan_topics & frames
+    _static_frame = "/map";
     std::string scan_topics_str = "", frames_str = "";
     _nh_private.param("scan_topics", scan_topics_str, scan_topics_str);
     _nh_private.param("frames", frames_str, frames_str);
@@ -79,13 +81,13 @@ public:
       ros::shutdown();
     }
 
-    // retrieve TF between each laser frame and "map" frame
+    // retrieve TF between each laser frame and _static_frame
     tf::TransformListener listener;
     for (unsigned int i = 0; i < ndev; ++i) {
       tf::StampedTransform transform;
       try{
-        listener.waitForTransform("/map", frames[i], ros::Time(0), ros::Duration(5));
-        listener.lookupTransform("/map", frames[i], ros::Time(0), transform);
+        listener.waitForTransform(_static_frame, frames[i], ros::Time(0), ros::Duration(5));
+        listener.lookupTransform(_static_frame, frames[i], ros::Time(0), transform);
       }
       catch (tf::TransformException ex){
         ROS_FATAL("Cannot get TF, %s",ex.what());
@@ -108,9 +110,21 @@ public:
     }
 
     // create publishers
-    _vis_pub = _nh_private.advertise<visualization_msgs::Marker>( "markers", 1 );
-    _marker.header.frame_id = "map";
-    _marker.id = 0;
+    _markers_pub = _nh_private.advertise<visualization_msgs::Marker>( "markers", 1 );
+    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 1 );
+    _outliers_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "outliers", 1 );
+    _marker_msg.header.frame_id = _static_frame;
+    _scan_msg.header = _marker_msg.header;
+    _outliers_msg.header = _marker_msg.header;
+    _marker_msg.id = 0;
+  }
+
+protected:
+  inline geometry_msgs::Point Pt2ToPoint(const Pt2 & pt) {
+    geometry_msgs::Point out;
+    out.x = pt.x; 
+    out.y = pt.y; 
+    return out;
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -120,59 +134,78 @@ public:
     // DEBUG_PRINT("scan_cb(%i)\n", device_idx);
     convert_sensor_data_to_xy(*scan_msg, _buffer);
     update_scan(device_idx, _buffer);
+    publish_outliers();
+    publish_scan();
     publish_devices_as_markers();
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  void publish_outliers_as_markers() {
-    recompute_outliers();
+  void publish_outliers() {
+    if (_outliers_pub.getNumSubscribers() == 0
+        || _outliers_timer.getTimeSeconds() < .01) // 100 Hz
+      return;
+    _outliers_timer.reset();
+    _outliers_msg.header.stamp = ros::Time::now();
+    recompute_outliers_if_needed();
+    _outliers_msg.points = _outliers;
+    _outliers_pub.publish(_outliers_msg);
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  void publish_scan_as_markers() {
-    recompute_scan();
+  void publish_scan() {
+    if (_scan_pub.getNumSubscribers() == 0
+        || _scan_timer.getTimeSeconds() < .01) // 100 Hz
+      return;
+    _scan_timer.reset();
+    _scan_msg.header.stamp = ros::Time::now();
+    recompute_scan_if_needed();
+    _scan_msg.points = _scan;
+    _scan_pub.publish(_scan_msg);
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
   void publish_devices_as_markers() {
-    if (_last_vis_pub.getTimeSeconds() < 1) // 1 Hz
+    if (_markers_pub.getNumSubscribers() == 0
+        || _markers_timer.getTimeSeconds() < 1) // 1 Hz
       return;
     DEBUG_PRINT("publish_devices_as_markers(%g)\n",
-                _last_vis_pub.getTimeSeconds());
-    _last_vis_pub.reset();
-    _marker.ns = "devices";
-    _marker.header.stamp = ros::Time::now();
-    _marker.type = visualization_msgs::Marker::ARROW;
-    _marker.action = visualization_msgs::Marker::ADD;
-    _marker.pose.position.z = 0;
-    _marker.scale.x = 1;
-    _marker.scale.y = 0.1;
-    _marker.scale.z = 0.1;
-    _marker.color.a = 1.0; // Don't forget to set the alpha!
-    _marker.color.r = 1; // yellow
-    _marker.color.g = 1;
-    _marker.color.b = 0.0;
+                _markers_timer.getTimeSeconds());
+    _markers_timer.reset();
+    _marker_msg.ns = "devices";
+    _marker_msg.header.stamp = ros::Time::now();
+    _marker_msg.type = visualization_msgs::Marker::ARROW;
+    _marker_msg.action = visualization_msgs::Marker::ADD;
+    _marker_msg.pose.position.z = 0;
+    _marker_msg.scale.x = 1;
+    _marker_msg.scale.y = 0.1;
+    _marker_msg.scale.z = 0.1;
+    _marker_msg.color.a = 1.0; // Don't forget to set the alpha!
+    _marker_msg.color.r = 1; // yellow
+    _marker_msg.color.g = 1;
+    _marker_msg.color.b = 0.0;
     for (unsigned int i = 0; i < ndevices(); ++i) {
       Device* d = &(_devices[i]);
-      _marker.id = i; // unique identifier
-      _marker.pose.position = d->pos;
-      _marker.pose.orientation = tf::createQuaternionMsgFromYaw(d->orien);
-      _vis_pub.publish( _marker );
+      _marker_msg.id = i; // unique identifier
+      _marker_msg.pose.position = Pt2ToPoint(d->pos);
+      _marker_msg.pose.orientation = tf::createQuaternionMsgFromYaw(d->orien);
+      _markers_pub.publish( _marker_msg );
     } // end for i
   }
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
+  std::string _static_frame;
   Scan _buffer;
   ros::NodeHandle _nh_public, _nh_private;
   std::vector<ros::Subscriber> _scan_subs;
-  ros::Publisher _vis_pub;
-  Timer _last_vis_pub;
-  visualization_msgs::Marker _marker;
+  ros::Publisher _markers_pub, _scan_pub, _outliers_pub;
+  Timer _markers_timer, _scan_timer, _outliers_timer;
+  visualization_msgs::Marker _marker_msg;
+  sensor_msgs::PointCloud _scan_msg, _outliers_msg;
 }; // end class ROSMultiLaserSurveillance
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -130,10 +130,18 @@ public:
 
   class Device {
   public:
-    Pt2 pos; // meters
-    double orien, cosorien, sinorien; // radians
+    Pt2 pos; // meters, in world coordinates
+    double orien, cosmorien, sinmorien; // radians
     Scan _last_scan; // in map coordinates
     OutlierPtList _outliers;
+    Pt2 device2world(const Pt2 & pt) {
+      Pt2 tmp, ans;
+      tmp.x = cosmorien * pt.x + sinmorien * pt.y;
+      tmp.y = sinmorien * pt.x - cosmorien * pt.y;
+      ans.x = tmp.x + pos.x;
+      ans.y = tmp.y + pos.y;
+      return ans;
+    }
   };
 
   //////////////////////////////////////////////////////////////////////////////
@@ -151,8 +159,8 @@ public:
     Device d;
     d.pos = pos;
     d.orien = orien;
-    d.cosorien = cos(orien);
-    d.sinorien = sin(orien);
+    d.cosmorien = cos(orien);
+    d.sinmorien = sin(orien);
     _devices.push_back(d);
   }
 
@@ -174,7 +182,7 @@ public:
       return false;
     }
     // compute obstacle map if not done yet and possible
-
+    // TODO
 
     // otherwise find outliers
     _need_recompute_outliers = true;
@@ -185,9 +193,7 @@ public:
     d->_last_scan.resize(npts);
     for (unsigned int i = 0; i < npts; ++i) {
       // convert to map frame
-      double x = scan[i].x, y = scan[i].y;
-      d->_last_scan[i].x = d->pos.x + (d->cosorien * x + d->sinorien * y);
-      d->_last_scan[i].y = d->pos.y + (d->sinorien * x - d->cosorien * y);
+      d->_last_scan[i] = d->device2world(scan[i]);
       // check if in map
       if (_obstacle_map.is_free(d->_last_scan[i]))
         d->_outliers.push_back(d->_last_scan[i]);
@@ -198,7 +204,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////
 
 protected:
-  bool recompute_outliers() {
+  bool recompute_outliers_if_needed() {
     if (!_need_recompute_outliers)
       return false;
     _need_recompute_outliers = false;
@@ -217,7 +223,7 @@ protected:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  bool recompute_scan() {
+  bool recompute_scan_if_needed() {
     if (!_need_recompute_scan)
       return false;
     _need_recompute_scan = false;

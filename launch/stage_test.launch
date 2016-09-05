@@ -15,9 +15,9 @@
 <node pkg="tf" type="static_transform_publisher" name="laser0tf"
       args="-7.6 -7.6 0   0.785 0 0   map  robot_0/odom   100"/>
 <node pkg="tf" type="static_transform_publisher" name="laser1tf"
-      args=" 7.6  7.6 0   3.927 0 0   map  robot_1/odom   100"/>
+      args="7.6  7.6 0   3.927 0 0   map  robot_1/odom   100"/>
 <node pkg="tf" type="static_transform_publisher" name="laser2tf"
-      args=" 7.6 -7.6 0   2.356 0 0   map  robot_2/odom   100"/>
+      args="4 -5 0   2.356 0 0   map  robot_2/odom   100"/>
 <node pkg="tf" type="static_transform_publisher" name="laser3tf"
       args="-7.6  7.6 0   5.498 0 0   map  robot_3/odom   100"/>
 
