@@ -78,8 +78,8 @@ public:
     for (unsigned int i = 0; i < npts; ++i) {
       _map( m2pix( obstacles[i] ) ) = 255;
     } // end for i
-//    cv::imshow("LiteObstacleMap", _map);
-//    cv::waitKey(500);
+    //    cv::imshow("LiteObstacleMap", _map);
+    //    cv::waitKey(500);
     timer.printTime("creating LiteObstacleMap");
     return true;
   }
@@ -101,14 +101,14 @@ public:
                                                  cv::Size( 2*radpix + 1, 2*radpix+1 ),
                                                  cv::Point( radpix, radpix ) );
     cv::dilate(_map, _map, element);
-//    cv::imshow("LiteObstacleMap-inflated", _map);
-//    cv::waitKey(500);
+    //    cv::imshow("LiteObstacleMap-inflated", _map);
+    //    cv::waitKey(500);
     return true;
   }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  inline bool is_free(const double & x, const double & y) {
+  inline bool is_free(const double & x, const double & y) const {
     if (x <= _xmin || x >= _xmax || y <= _ymin || y >= _ymax)
       return false; // out of bounds
     return (_map.at<uchar>(m2pix(x, y)) == 0);
@@ -120,13 +120,13 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
-//protected:
-  inline cv::Point m2pix(const double & x, const double & y) {
+  //protected:
+  inline cv::Point m2pix(const double & x, const double & y) const {
     return cv::Point( (x - _xmin) * _m2pix,
                       (y - _ymin) * _m2pix);
   }
   template<class Pt2f>
-  inline cv::Point m2pix(const Pt2f p) {
+  inline cv::Point m2pix(const Pt2f & p) const {
     return m2pix(p.x, p.y);
   }
 
@@ -161,23 +161,30 @@ public:
       _sinorien = sin(orien);
     }
 
-    Pt2 device2world(const Pt2 & pt) {
-      Pt2 tmp, ans;
-      tmp.x = _cosorien * pt.x - _sinorien * pt.y;
-      tmp.y = _sinorien * pt.x + _cosorien * pt.y;
-      ans.x = tmp.x + _pos.x;
-      ans.y = tmp.y + _pos.y;
-      return ans;
+    inline void device2world(const Pt2 & in,
+                             Pt2 & out) const {
+      out.x = _cosorien * in.x - _sinorien * in.y + _pos.x;
+      out.y = _sinorien * in.x + _cosorien * in.y + _pos.y;
     }
 
-    std::string _name;
-    Pt2 _pos; // meters, in world coordinates
-    double _orien, _cosorien, _sinorien; // radians
-    Scan _last_scan; // in map coordinates
-    OutlierPtList _outliers;
-    Scan _map_scans; // aggregated map scans to build the global map
-    unsigned int _map_nscans; // number of aggregated map scans in _map_scans
-  };
+    inline void set_last_scan(const Scan & scan) {
+      unsigned int npts = scan.size();
+      _last_scan.resize(npts);
+      _last_scan_timer.reset();
+      // convert to map frame
+      for (unsigned int i = 0; i < npts; ++i)
+        device2world(scan[i], _last_scan[i]);
+    }
+
+    std::string _name; //!< device name
+    Pt2 _pos; //!< meters, in world coordinates
+    double _orien, _cosorien, _sinorien; //!< radians, and cached values of cos and sin
+    OutlierPtList _outliers; //!< outliers detected by this device
+    Timer _last_scan_timer;
+    Scan _last_scan; //!< cached last scan, in map coordinates
+    Scan _map_scans; //!< aggregated map scans to build the global map
+    unsigned int _map_nscans; //!< number of aggregated map scans in _map_scans
+  }; // end class Device
 
   //////////////////////////////////////////////////////////////////////////////
 
@@ -220,11 +227,7 @@ public:
     _need_recompute_outliers = true;
     _need_recompute_scan = true;
     Device* d = &(_devices[device_idx]);
-    unsigned int npts = scan.size();
-    d->_last_scan.resize(npts);
-    // convert to map frame
-    for (unsigned int i = 0; i < npts; ++i)
-      d->_last_scan[i] = d->device2world(scan[i]);
+    d->set_last_scan(scan);
 
     // aggregate scan if map not done
     if (_status == STATUS_MAP_NOT_DONE) {
@@ -249,6 +252,7 @@ public:
     // check if in map
     // DEBUG_PRINT("Device '%s': checking for outliers\n", d->_name.c_str());
     d->_outliers.clear();
+    unsigned int npts = scan.size();
     for (unsigned int i = 0; i < npts; ++i) {
       Pt2 & pt = d->_last_scan[i];
       if (_obstacle_map.is_free(pt)) {

@@ -68,6 +68,17 @@ static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & lase
 } // end convert_sensor_data_to_xy()
 
 ////////////////////////////////////////////////////////////////////////////////
+
+static inline void createColorMsg
+(std_msgs::ColorRGBA & color, const float & red, const float & green,
+ const float & blue, const float & alpha = 1) {
+  color.r = red;
+  color.g = green;
+  color.b = blue;
+  color.a = alpha;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 class ROSMultiLaserSurveillance : public MultiLaserSurveillance<Pt2> {
@@ -118,15 +129,15 @@ public:
       // create subscribers - pass i
       // http://ros-users.122217.n3.nabble.com/How-to-identify-the-subscriber-or-the-topic-name-related-to-a-callback-td2391327.html
       _scan_subs[i] = _nh_public.subscribe<sensor_msgs::LaserScan>
-          (scan_topics[i], 1,
+          (scan_topics[i], 0,
            boost::bind(&ROSMultiLaserSurveillance::scan_cb, this, _1, i));
     }
 
     // create publishers
-    _map_pub = _nh_private.advertise<nav_msgs::OccupancyGrid>( "map", 1 );
-    _marker_pub = _nh_private.advertise<visualization_msgs::Marker>( "marker", 1 );
-    _outliers_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "outliers", 1 );
-    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 1 );
+    _map_pub = _nh_private.advertise<nav_msgs::OccupancyGrid>( "map", 0 );
+    _marker_pub = _nh_private.advertise<visualization_msgs::Marker>( "marker", 0 );
+    _outliers_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
+    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 0 );
     _map_msg.header = _marker_msg.header;
     _marker_msg.header.frame_id = _static_frame;
     _marker_msg.id = 0;
@@ -197,14 +208,16 @@ protected:
     _marker_msg.action = visualization_msgs::Marker::ADD;
     _marker_msg.pose.position.z = 0;
     _marker_msg.scale.x = 1;
-    _marker_msg.scale.y = 0.1;
-    _marker_msg.scale.z = 0.1;
-    _marker_msg.color.a = 1.0; // Don't forget to set the alpha!
-    _marker_msg.color.r = 1; // yellow
-    _marker_msg.color.g = 1;
-    _marker_msg.color.b = 0.0;
+    _marker_msg.scale.y = 0.2;
+    _marker_msg.scale.z = 0.2;
     for (unsigned int i = 0; i < ndevices(); ++i) {
       Device* d = &(_devices[i]);
+      if (d->_last_scan.empty()) // never got a scal
+        createColorMsg(_marker_msg.color, 1, 0, 0); // red
+      else if (d->_last_scan_timer.getTimeSeconds() > 1)
+        createColorMsg(_marker_msg.color, 1, 1, 0); // yellow
+      else // all ok
+        createColorMsg(_marker_msg.color, 0, 1, 0); // green
       _marker_msg.id = i; // unique identifier
       _marker_msg.pose.position = Pt2ToPoint(d->_pos);
       _marker_msg.pose.orientation = tf::createQuaternionMsgFromYaw(d->_orien);
@@ -235,7 +248,7 @@ protected:
         const uchar* data = _obstacle_map._map.ptr<uchar>(row);
         for (int col = 0; col < w; ++col) {
           if (data[col])
-          _map_msg.data[col + row * w] = 100; // occupied
+            _map_msg.data[col + row * w] = 100; // occupied
         } // end loop col
       } // end loop row
     }
