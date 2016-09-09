@@ -4,7 +4,7 @@
 #include <vector>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "timer.h"
+#include <multilaser_surveillance/timer.h>
 
 //#define DEBUG_PRINT(...)   {}
 #define DEBUG_PRINT(...)   printf(__VA_ARGS__)

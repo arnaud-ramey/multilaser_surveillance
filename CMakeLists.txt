@@ -21,6 +21,11 @@ add_executable(multilaser_surveillance.exe
   src/multilaser_surveillance.cpp
   ${PKG_INC_DIR}/wanderer.h)
 target_link_libraries(multilaser_surveillance.exe ${catkin_LIBRARIES})
+
+add_executable(2dclusterer.exe
+  src/2dclusterer.cpp
+  ${PKG_INC_DIR}/2dclusterer.h)
+target_link_libraries(2dclusterer.exe ${catkin_LIBRARIES})
 ### 8 - Tests to build (catkin_add_gtest())
 #ADD_SUBDIRECTORY(test)
 ### 9 - Install rules (install())

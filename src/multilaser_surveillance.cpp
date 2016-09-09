@@ -2,7 +2,7 @@
   \file         multilaser_surveillance.cpp
   \author       Arnaud Ramey <arnaud.a.ramey@gmail.com>
                 -- Robotics Lab, University Carlos III of Madrid
-  \date         2015/10/14
+  \date         2016/09/05
 
   ______________________________________________________________________________
 
@@ -19,9 +19,6 @@
   You should have received a copy of the GNU Lesser General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   ______________________________________________________________________________
-
-
-\section Parameters
 */
 #include <multilaser_surveillance/wanderer.h>
 // ROS
@@ -134,10 +131,10 @@ public:
     }
 
     // create publishers
-    _map_pub = _nh_private.advertise<nav_msgs::OccupancyGrid>( "map", 0 );
-    _marker_pub = _nh_private.advertise<visualization_msgs::Marker>( "marker", 0 );
-    _outliers_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
-    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 0 );
+    _map_pub = _nh_public.advertise<nav_msgs::OccupancyGrid>( "map", 0 );
+    _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
+    _outliers_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
+    _scan_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "scan", 0 );
     _map_msg.header = _marker_msg.header;
     _marker_msg.header.frame_id = _static_frame;
     _marker_msg.id = 0;
@@ -158,6 +155,7 @@ protected:
   void scan_cb(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
                unsigned int device_idx) {
     // DEBUG_PRINT("scan_cb(%i)\n", device_idx);
+    Timer timer;
     Scan _buffer;
     convert_sensor_data_to_xy(*scan_msg, _buffer);
     update_scan(device_idx, _buffer);
@@ -165,6 +163,7 @@ protected:
     publish_scan();
     publish_map();
     publish_devices_as_markers();
+    ROS_INFO_THROTTLE(5, "time for scan_cb(): %g ms", timer.getTimeMilliseconds());
   }
 
   //////////////////////////////////////////////////////////////////////////////

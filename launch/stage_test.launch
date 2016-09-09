@@ -26,6 +26,12 @@
   args="_scan_topics:=/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan
         _frames:=/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom" />
 
+<node pkg="multilaser_surveillance" type="2dclusterer.exe"
+  name="clusterer" required="true" output="screen">
+  <remap from="cloud" to="outliers"/>
+  <param name="cluster_tolerance" value="0.3"/>
+</node>
+
 
 <!-- rviz
 $ rosrun image_view image_view image:=/robot_4/image

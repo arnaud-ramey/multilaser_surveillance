@@ -208,3 +208,12 @@ pioneer2dx_no_sonar
   )
 )
 
+# throw in another robot
+pioneer2dx_no_sonar
+(
+  name "r1"
+  color "green"
+  pose [ -9.607 -5 0.000 45.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+)
+
