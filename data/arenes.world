@@ -1,0 +1,77 @@
+include "stage_includes.inc"
+
+# set the resolution of the underlying raytrace model in meters
+resolution 0.02
+
+interval_sim 100  # simulation timestep in milliseconds
+
+# configure the GUI window
+window
+(
+  size [ 800 600 ] # in pixels
+  scale 50   # pixels per meter
+  center [ 0 0 ]
+  rotate [ 27.500  -16.000 ]
+
+  show_data 1              # 1=on 0=off
+)
+
+# load an environment bitmap
+floorplan
+(
+  name "arenes"
+  size [17.000 8.000 0.800]
+  pose [0.000 0.000 0.000 0.000]
+  bitmap "bitmaps/arenes.png"
+)
+
+# colors: http://www.color-hex.com/color-names.html
+# left to right
+sickmount( pose [ -8    3.7  0  -45  ] ) # 0:left up corner
+sickmount( pose [ -7    0.7  0  -45  ] ) # 1:bedroom
+sickmount( pose [ -4.1 -2.7  0   45  ] ) # 2:bedroom 2
+sickmount( pose [ -2    0.7  0  -45  ] ) # 3:central (toilets)
+sickmount( pose [ -1.8  3.7  0  225  ] ) # 4:trapeze
+sickmount( pose [ -1.2  3.7  0  -45  ] ) # 5:right to trapeze
+sickmount( pose [ 0    -3.7  0   45  ] ) # 6:living room
+sickmount( pose [ 4     3.7  0  225  ] ) # 7:2 right to trapeze
+sickmount( pose [ 8     0    0  180  ] ) # 8:center right (garden)
+
+#~ sickmount( pose [ 0 0 0  0  ] ) # origin
+
+# throw in a robot
+pioneer2dx_no_sonar
+(
+  # can refer to the robot by this name
+  name "r0"
+  pose [ 2 6 0.000 -90.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+  camera
+  (
+    # laser properties
+    resolution [ 160 120 ]
+    range [ 0.2 8.0 ]
+    fov [ 70.0 40.0 ]
+    pantilt [ 0.0 0.0 ]
+
+    # model properties
+    size [ 0.100 0.070 0.050 ]
+    color "black"
+    watts 100.0 # TODO find watts for sony pan-tilt camera
+  )
+)
+
+# throw in 2 other robots
+pioneer2dx_no_sonar
+(
+  color "green"
+  pose [ 3 6 0.000 -90.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+)
+pioneer2dx_no_sonar
+(
+  color "blue"
+  pose [ 4 6 0.000 -90.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+)
+

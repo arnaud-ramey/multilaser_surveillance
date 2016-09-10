@@ -1,0 +1,52 @@
+<launch>
+<!-- do not use Linux wall time but a simulated time -->
+<param name="/use_sim_time" value="true"/>
+<arg name="world" value="arenes"/>
+
+<!-- find /opt/ros/*/share/stage* -name "*.world" -->
+<node pkg="stage_ros" type="stageros" name="stage" output="screen" required="true"
+  args="$(find multilaser_surveillance)/data/$(arg world).world" />
+
+<!-- TF between the floor and the kinect -->
+<arg name="45deg"  value="0.78539816339744830962"/>
+<arg name="225deg" value="3.92699081698724154808"/>
+<arg name="180deg" value="3.14159265358979323846"/>
+
+<node pkg="tf" type="static_transform_publisher" name="laser0tf"
+      args="-8  3.7 0    -$(arg 45deg)  0 0   map  robot_0/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser1tf"
+      args="-7 0.7 0     -$(arg 45deg)  0 0   map  robot_1/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser2tf"
+      args="-4.1 -2.7 0   $(arg 45deg)  0 0   map  robot_2/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser3tf"
+      args="-2     .7 0  -$(arg 45deg)  0 0   map  robot_3/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser4tf"
+      args="-1.8  3.7 0   $(arg 225deg) 0 0   map  robot_4/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser5tf"
+      args="-1.2  3.7 0  -$(arg 45deg)  0 0   map  robot_5/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser6tf"
+      args="0    -3.7 0   $(arg 45deg)  0 0   map  robot_6/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser7tf"
+      args="4     3.7 0   $(arg 225deg) 0 0   map  robot_7/odom   100"/>
+<node pkg="tf" type="static_transform_publisher" name="laser8tf"
+      args="8     0   0   $(arg 180deg) 0 0   map  robot_8/odom   100"/>
+
+<node pkg="multilaser_surveillance" type="multilaser_surveillance.exe"
+  name="mls" required="true" output="screen"
+  args="_scan_topics:=/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan;/robot_4/base_scan;/robot_5/base_scan;/robot_6/base_scan;/robot_7/base_scan;/robot_8/base_scan
+        _frames:=/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom;/robot_4/odom;/robot_5/odom;/robot_6/odom;/robot_7/odom;/robot_8/odom" />
+
+<node pkg="multilaser_surveillance" type="2dclusterer.exe"
+  name="clusterer" required="true" output="screen">
+  <remap from="cloud" to="outliers"/>
+  <param name="cluster_tolerance" value="0.7"/>
+</node>
+
+
+<!-- rviz
+$ rosrun image_view image_view image:=/robot_4/image
+-->
+<node pkg="rviz" type="rviz" name="rviz"
+      args="--display-config $(find multilaser_surveillance)/config/$(arg world).rviz" />
+</launch>
+

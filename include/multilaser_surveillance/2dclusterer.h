@@ -64,7 +64,7 @@ std::string vec2str(const Vec & v) {
 
 template<class Pt2>
 static inline bool are_neighbors(const Pt2 & A, const Pt2 & B,
-                                   const double & cluster_tolerance_sq) {
+                                 const double & cluster_tolerance_sq) {
   double dx = (A.x - B.x), dx2 = dx * dx;
   if (dx2 > cluster_tolerance_sq)
     return false;
