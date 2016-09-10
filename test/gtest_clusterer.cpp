@@ -1,5 +1,6 @@
 // Bring in my package's API, which is what I'm testing
 #include <multilaser_surveillance/2dclusterer.h>
+#include <math.h>
 // Bring in gtest
 #include <gtest/gtest.h>
 
@@ -10,79 +11,119 @@ public:
   double x, y;
 };
 
-void EXPECT_PTS_EQ(const Pt2 & A, const Pt2 & B) {
-  EXPECT_NEAR(A.x, B.x, 1E-2);
-  EXPECT_NEAR(A.y, B.y, 1E-2);
+void ASSERT_PTS_EQ(const Pt2 & A, const Pt2 & B, double max_dist = 1E-2) {
+  ASSERT_NEAR(A.x, B.x, max_dist) << "(" << A.x << "," << A.y
+                                  << ") differ from (" << B.x << "," << B.y << ")";
+  ASSERT_NEAR(A.y, B.y, max_dist) << "(" << A.x << "," << A.y
+                                  << ") differ from (" << B.x << "," << B.y << ")";
 }
 
 
 TEST(TestSuite, empty) {
-  std::vector<Pt2> data, cluster_centers;
+  std::vector<Pt2> pts, cluster_centers;
   std::vector<unsigned int> cluster_indices;
   cluster_indices.push_back(1);
   unsigned int nclusters = 2;
-  cluster(data, cluster_indices, nclusters);
-  EXPECT_EQ(nclusters, 0);
-  EXPECT_EQ(cluster_indices.size(), data.size());
-  barycenters(data, cluster_indices, nclusters, cluster_centers);
-  EXPECT_EQ(cluster_centers.size(), nclusters);
+  cluster(pts, cluster_indices, nclusters);
+  ASSERT_EQ(nclusters, 0);
+  ASSERT_EQ(cluster_indices.size(), pts.size());
+  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  ASSERT_EQ(cluster_centers.size(), nclusters);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST(TestSuite, singleton) {
-  for (unsigned int npts = 1; npts < 10; ++npts) {
-    std::vector<Pt2> data, cluster_centers;
-    for (unsigned int i = 0; i < npts; ++i)
-      data.push_back(Pt2(2, 3));
-    std::vector<unsigned int> cluster_indices;
-    unsigned int nclusters = 2;
-    cluster(data, cluster_indices, nclusters);
-    EXPECT_EQ(nclusters, 1);
-    EXPECT_EQ(cluster_indices.size(), data.size());
-    EXPECT_EQ(cluster_indices.front(), 0);
-    barycenters(data, cluster_indices, nclusters, cluster_centers);
-    EXPECT_EQ(cluster_centers.size(), nclusters);
-    EXPECT_PTS_EQ(cluster_centers.front(), data.front());
-  } // end for npts
+void test_singleton(unsigned int npts) {
+  std::vector<Pt2> pts, cluster_centers;
+  for (unsigned int i = 0; i < npts; ++i)
+    pts.push_back(Pt2(2, 3));
+  std::vector<unsigned int> cluster_indices;
+  unsigned int nclusters = 2;
+  cluster(pts, cluster_indices, nclusters);
+  ASSERT_EQ(nclusters, 1);
+  ASSERT_EQ(cluster_indices.size(), pts.size());
+  ASSERT_EQ(cluster_indices.front(), 0);
+  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  ASSERT_EQ(cluster_centers.size(), nclusters);
+  ASSERT_PTS_EQ(cluster_centers.front(), pts.front());
 }
+
+TEST(TestSuite, singleton1)  { test_singleton(1); }
+TEST(TestSuite, singleton2)  { test_singleton(2); }
+TEST(TestSuite, singleton3)  { test_singleton(3); }
+TEST(TestSuite, singleton10) { test_singleton(10); }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 TEST(TestSuite, average) {
-  std::vector<Pt2> data, cluster_centers;
-  data.push_back(Pt2(2, 3));
-  data.push_back(Pt2(2.1, 3));
+  std::vector<Pt2> pts, cluster_centers;
+  pts.push_back(Pt2(2, 3));
+  pts.push_back(Pt2(2.1, 3));
   std::vector<unsigned int> cluster_indices;
   unsigned int nclusters = 1;
-  cluster(data, cluster_indices, nclusters);
-  EXPECT_EQ(nclusters, 1);
-  EXPECT_EQ(cluster_indices.size(), data.size());
-  EXPECT_EQ(cluster_indices.front(), 0);
-  EXPECT_EQ(cluster_indices.back(), 0);
-  barycenters(data, cluster_indices, nclusters, cluster_centers);
-  EXPECT_EQ(cluster_centers.size(), nclusters);
-  EXPECT_PTS_EQ(cluster_centers.front(), Pt2(2.05, 3));
+  cluster(pts, cluster_indices, nclusters);
+  ASSERT_EQ(nclusters, 1);
+  ASSERT_EQ(cluster_indices.size(), pts.size());
+  ASSERT_EQ(cluster_indices.front(), 0);
+  ASSERT_EQ(cluster_indices.back(), 0);
+  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  ASSERT_EQ(cluster_centers.size(), nclusters);
+  ASSERT_PTS_EQ(cluster_centers.front(), Pt2(2.05, 3));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST(TestSuite, remote) {
-  std::vector<Pt2> data, cluster_centers;
-  data.push_back(Pt2(2, 3));
-  data.push_back(Pt2(4, 3));
+void test_remote(unsigned int npts) {
+  std::vector<Pt2> pts, cluster_centers;
+  for (unsigned int i = 0; i < npts; ++i)
+    pts.push_back(Pt2(i, i));
   std::vector<unsigned int> cluster_indices;
   unsigned int nclusters = 1;
-  cluster(data, cluster_indices, nclusters);
-  EXPECT_EQ(nclusters, 2);
-  EXPECT_EQ(cluster_indices.size(), data.size());
-  EXPECT_EQ(cluster_indices.front(), 0);
-  EXPECT_EQ(cluster_indices.back(), 1);
-  barycenters(data, cluster_indices, nclusters, cluster_centers);
-  EXPECT_EQ(cluster_centers.size(), nclusters);
-  EXPECT_PTS_EQ(cluster_centers.front(), Pt2(2, 3));
-  EXPECT_PTS_EQ(cluster_centers.back(), Pt2(4, 3));
+  cluster(pts, cluster_indices, nclusters);
+  ASSERT_EQ(nclusters, npts);
+  ASSERT_EQ(cluster_indices.size(), pts.size());
+  for (unsigned int i = 0; i < npts; ++i)
+    ASSERT_EQ(cluster_indices[i], i);
+  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  ASSERT_EQ(cluster_centers.size(), nclusters);
+  for (unsigned int i = 0; i < npts; ++i)
+    ASSERT_PTS_EQ(cluster_centers[i], pts[i]);
 }
+
+TEST(TestSuite, remote1) { test_remote(1);}
+TEST(TestSuite, remote2) { test_remote(2);}
+TEST(TestSuite, remote3) { test_remote(3);}
+TEST(TestSuite, remote10) { test_remote(10);}
+
+////////////////////////////////////////////////////////////////////////////////
+
+void test_circles(unsigned int ncircles, unsigned int nptspercircle = 10) {
+  std::vector<Pt2> pts, cluster_centers;
+  double radius=.1;
+  for (unsigned int pti = 0; pti < nptspercircle; ++pti) {
+    double theta = 2. * M_PI * pti / nptspercircle;
+    for (unsigned int ci = 0; ci < ncircles; ++ci) {
+      pts.push_back(Pt2(ci+radius*cos(theta), ci+radius*sin(theta)));
+    } // end for ci
+  } // end for pti
+  std::vector<unsigned int> cluster_indices;
+  unsigned int nclusters = 1;//, npts = pts.size();
+  cluster(pts, cluster_indices, nclusters);
+  ASSERT_EQ(nclusters, ncircles);
+  ASSERT_EQ(cluster_indices.size(), pts.size());
+  //for (unsigned int i = 0; i < npts; ++i)
+    //ASSERT_EQ(cluster_indices[i], i % nptspercircle);
+  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  ASSERT_EQ(cluster_centers.size(), nclusters);
+  for (unsigned int i = 0; i < nclusters; ++i)
+    ASSERT_PTS_EQ(cluster_centers[i], Pt2(i, i));
+}
+
+TEST(TestSuite, circles1) { test_circles(1); }
+TEST(TestSuite, circles2) { test_circles(2); }
+TEST(TestSuite, circles3) { test_circles(3); }
+TEST(TestSuite, circles10) { test_circles(10); }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

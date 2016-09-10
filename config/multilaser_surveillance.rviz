@@ -5,7 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded: ~
       Splitter Ratio: 0.493631005
-    Tree Height: 531
+    Tree Height: 373
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -297,15 +297,15 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.613361955
-        Y: -0.831022918
-        Z: -1.87405264
+        X: 1.7303884
+        Y: 0.365946591
+        Z: 0.664457798
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 1.24479604
+      Pitch: 0.679796576
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.35538292
+      Yaw: 4.29038143
     Saved: ~
 Window Geometry:
   Displays:
@@ -323,5 +323,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 681
-  X: 0
+  X: 683
   Y: 0

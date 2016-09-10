@@ -2,9 +2,11 @@
 #define CLUSTERER_H
 
 #include <vector>
+#include <map>
+#include <sstream>
 #include <stdio.h>
 
-//! from https://avdongre.wordpress.com/2011/12/06/disjoint-set-data-structure-c/
+//! from https://avdongre.wordpress.com/2011/12/06/disjoint-set-pts-structure-c/
 class DisjointSets {
 public:
   struct DisjointSet {
@@ -23,8 +25,9 @@ public:
   size_t find(size_t i){
     if (forest[i].parent == i)
       return i;
-    was_changed = true;
+    size_t old_parent = forest[i].parent;
     forest[i].parent = find(forest[i].parent);
+    was_changed = (old_parent != forest[i].parent);
     return forest[i].parent;
   }
 
@@ -49,19 +52,31 @@ public:
   bool was_changed;
 }; // end class DisjointSets
 
+template<class Vec>
+std::string vec2str(const Vec & v) {
+  std::ostringstream out;
+  for (unsigned int i = 0; i < v.size(); ++i)
+    out << v[i] << ", ";
+  return out.str();
+}
+
 //////////////////////////////////////////////////////////////////////////////
 
 template<class Pt2>
-static inline double distsq(const Pt2 & A, const Pt2 & B) {
-  double dx = (A.x - B.x), dy = (A.y - B.y);
-  return dx * dx + dy * dy;
+static inline bool are_neighbors(const Pt2 & A, const Pt2 & B,
+                                   const double & cluster_tolerance_sq) {
+  double dx = (A.x - B.x), dx2 = dx * dx;
+  if (dx2 > cluster_tolerance_sq)
+    return false;
+  double dy = (A.y - B.y);
+  return (dx2 + dy * dy) <= cluster_tolerance_sq;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 /*!
    * Find the main cluster in a set of points.
-   * \param data
+   * \param pts
    *    the input cloud
    * \param cluster_tolerance
    *    the spatial cluster tolerance as a measure in the L2 Euclidean space, in meters.
@@ -70,39 +85,60 @@ static inline double distsq(const Pt2 & A, const Pt2 & B) {
    *   true if success
    */
 template<class Pt2>
-static bool cluster(const std::vector<Pt2> & data,
+static bool cluster(const std::vector<Pt2> & pts,
                     std::vector<unsigned int> & cluster_indices,
                     unsigned int & nclusters,
                     const double & cluster_tolerance = 0.1f) {
   nclusters = 0;
-  if (data.size() == 0) {
+  if (pts.size() == 0) {
     printf("cluster(): clustering an empty cloud.\n");
     cluster_indices.clear();
     return true; // no error needed
   }
-  unsigned int npts = data.size();
-//  DisjointSets set(npts);
-//  while (set.was_changed) {
-//    set.reset_was_changed();
-//  }
-  cluster_indices.resize(npts, 0);
+  unsigned int npts = pts.size();
   double cluster_tolerance_sq = cluster_tolerance * cluster_tolerance;
+  // compute neighbors matrix - careful, defined if j > i
+  std::vector< std::vector<bool> > neighbors ( npts, std::vector<bool> ( npts, false ) );
   for (unsigned int i = 0; i < npts; ++i) {
-    bool was_added = false;
-    for (unsigned int j = 0; j < i; ++j) {
-      if (distsq(data[i], data[j]) > cluster_tolerance_sq)
-        continue;
-      cluster_indices[i] = cluster_indices[j];
-      was_added = true;
-      break;
-    } // end for ci
-    // if was not added, create new cluster with data[pi]
-    if (was_added)
-      continue;
-    cluster_indices[i] = nclusters;
-    ++nclusters;
-  } // end for pi
+    for (unsigned int j = i+1; j < npts; ++j) {
+      neighbors[i][j] = are_neighbors(pts[i], pts[j], cluster_tolerance_sq);
+    } // end for j
+  } // end for i
 
+  // print matrix
+  //for (unsigned int i = 0; i < npts; ++i) {
+  //  for (unsigned int j = 0; j < npts; ++j) printf("%c", neighbors[i][j] ? 'X' : '.');
+  //  printf("\n");
+  //} // end for i
+
+  DisjointSets set(npts);
+  //unsigned int niters = 0;
+  while (set.was_changed) {
+    //printf("set iteration:%i\n", niters++);
+    set.reset_was_changed();
+    for (unsigned int i = 0; i < npts; ++i) {
+      for (unsigned int j = i+1; j < npts; ++j) {
+        if (neighbors[i][j]) {
+          //printf("Merging %i and %i\n", j, i);
+          set.merge(j, i);
+        }
+      } // end for j
+    } // end for i
+  } // end while (set.was_changed)
+
+  // convert all the different values of parents into a [0,1,..,nclusters] list
+  std::map<size_t, unsigned int> parent2cluster;
+  cluster_indices.resize(npts);
+  for (unsigned int i = 0; i < npts; ++i) {
+    size_t parent = set.forest[i].parent;
+    if (parent2cluster.find(parent) == parent2cluster.end())
+      parent2cluster.insert(std::make_pair(parent, parent2cluster.size()));
+    cluster_indices[i] = parent2cluster[parent];
+  }
+
+  nclusters = parent2cluster.size(); // parent is equal to (ncluster-1)
+  // print cluster_indices
+  //printf("cluster_indices:%s\n", vec2str(cluster_indices).c_str());
   return true; // success
 } // end cluster()
 
@@ -129,7 +165,7 @@ Pt2 Pt2ctor(const double & x, const double & y) {
 }
 
 template<class Pt2>
-static bool barycenters(const std::vector<Pt2> & data,
+static bool barycenters(const std::vector<Pt2> & pts,
                         const std::vector<unsigned int> & cluster_indices,
                         const unsigned int & nclusters,
                         std::vector<Pt2> & cluster_centers) {
@@ -140,7 +176,7 @@ static bool barycenters(const std::vector<Pt2> & data,
   }
   cluster_centers.resize(nclusters, Pt2ctor<Pt2>(0., 0.));
   std::vector<unsigned int> cluster_sizes(nclusters, 0);
-  unsigned int npts = data.size();
+  unsigned int npts = pts.size();
   for (unsigned int pi = 0; pi < npts; ++pi) {
     unsigned int cluster_idx = cluster_indices[pi];
     if (cluster_idx >= nclusters) {
@@ -148,7 +184,7 @@ static bool barycenters(const std::vector<Pt2> & data,
              cluster_idx, nclusters-1);
       continue;
     }
-    add_to(cluster_centers[ cluster_idx ], data[pi]);
+    add_to(cluster_centers[ cluster_idx ], pts[pi]);
     ++cluster_sizes[ cluster_idx ];
   } // end for pi
   // normalize
