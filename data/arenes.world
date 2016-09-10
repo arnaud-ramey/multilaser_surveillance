@@ -9,9 +9,9 @@ interval_sim 100  # simulation timestep in milliseconds
 window
 (
   size [ 800 600 ] # in pixels
-  scale 50   # pixels per meter
-  center [ 0 0 ]
-  rotate [ 27.500  -16.000 ]
+  scale 35   # pixels per meter
+  center [ 0 1 ]
+  rotate [ 27.500  0.000 ]
 
   show_data 1              # 1=on 0=off
 )
