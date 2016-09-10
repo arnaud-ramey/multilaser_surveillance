@@ -3,8 +3,7 @@ Panels:
     Help Height: 71
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /PoseArray1
+      Expanded: ~
       Splitter Ratio: 0.493631005
     Tree Height: 531
   - Class: rviz/Selection
@@ -186,6 +185,7 @@ Visualization Manager:
       Marker Topic: /marker
       Name: Marker
       Namespaces:
+        clusters: true
         devices: true
       Queue Size: 100
       Value: true
@@ -323,5 +323,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 681
-  X: 683
+  X: 0
   Y: 0

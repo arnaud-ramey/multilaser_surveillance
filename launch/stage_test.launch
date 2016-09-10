@@ -29,7 +29,7 @@
 <node pkg="multilaser_surveillance" type="2dclusterer.exe"
   name="clusterer" required="true" output="screen">
   <remap from="cloud" to="outliers"/>
-  <param name="cluster_tolerance" value="0.3"/>
+  <param name="cluster_tolerance" value="0.5"/>
 </node>
 
 

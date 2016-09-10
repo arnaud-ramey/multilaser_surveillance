@@ -27,7 +27,7 @@ add_executable(2dclusterer.exe
   ${PKG_INC_DIR}/2dclusterer.h)
 target_link_libraries(2dclusterer.exe ${catkin_LIBRARIES})
 ### 8 - Tests to build (catkin_add_gtest())
-#ADD_SUBDIRECTORY(test)
+catkin_add_gtest(gtest_clusterer  test/gtest_clusterer.cpp)
 ### 9 - Install rules (install())
 install(DIRECTORY include/${PROJECT_NAME}/
    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
