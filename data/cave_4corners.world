@@ -1,0 +1,68 @@
+include "stage_includes.inc"
+
+# set the resolution of the underlying raytrace model in meters
+resolution 0.02
+
+interval_sim 100  # simulation timestep in milliseconds
+
+# configure the GUI window
+window
+(
+  size [ 681 744 ] # in pixels
+  scale 30.574   # pixels per meter
+  center [ 0.122  0.037 ]
+  rotate [ 27.500  -16.000 ]
+
+  show_data 1              # 1=on 0=off
+)
+
+# load an environment bitmap
+floorplan
+(
+  name "cave"
+  size [16.000 16.000 0.800]
+  pose [0.000 0.000 0.000 0.000]
+  bitmap "bitmaps/cave.png"
+)
+
+sickmount( pose [ -7.600  -7.600  0.000  45.000  ] ) # left bottom
+sickmount( pose [  7.600   7.600  0.000  -135.000 ] ) # right top
+sickmount( pose [  4.000  -5.000  0.000  135.000 ] ) # right bottom
+sickmount( pose [ -7.600   7.600  0.000  -45.000 ] ) # left top
+
+# throw in a robot
+pioneer2dx_no_sonar
+(
+  # can refer to the robot by this name
+  name "r0"
+  pose [ -9.607 -7.152 0.000 45.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+  camera
+  (
+    # laser properties
+    resolution [ 160 120 ]
+    range [ 0.2 8.0 ]
+    fov [ 70.0 40.0 ]
+    pantilt [ 0.0 0.0 ]
+
+    # model properties
+    size [ 0.100 0.070 0.050 ]
+    color "black"
+    watts 100.0 # TODO find watts for sony pan-tilt camera
+  )
+)
+
+# throw in 2 other robots
+pioneer2dx_no_sonar
+(
+  color "green"
+  pose [ -9.607 -5 0.000 0.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+)
+pioneer2dx_no_sonar
+(
+  color "blue"
+  pose [ -9.607 -3 0.000 -45.000 ]
+  fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
+)
+

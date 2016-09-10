@@ -91,7 +91,7 @@ static bool cluster(const std::vector<Pt2> & pts,
                     const double & cluster_tolerance = 0.1f) {
   nclusters = 0;
   if (pts.size() == 0) {
-    printf("cluster(): clustering an empty cloud.\n");
+    // printf("cluster(): clustering an empty cloud.\n");
     cluster_indices.clear();
     return true; // no error needed
   }
@@ -171,7 +171,7 @@ static bool barycenters(const std::vector<Pt2> & pts,
                         std::vector<Pt2> & cluster_centers) {
   cluster_centers.clear();
   if (nclusters == 0) {
-    printf("barycenters(): empty cloud.\n");
+    //printf("barycenters(): empty cloud.\n");
     return true;
   }
   cluster_centers.resize(nclusters, Pt2ctor<Pt2>(0., 0.));

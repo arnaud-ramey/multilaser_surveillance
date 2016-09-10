@@ -1,10 +1,14 @@
 <launch>
 <!-- do not use Linux wall time but a simulated time -->
 <param name="/use_sim_time" value="true"/>
+<arg name="world" value="cave_4corners"/>
+<!--
+<arg name="world" value="arenes"/>
+-->
 
 <!-- find /opt/ros/*/share/stage* -name "*.world" -->
 <node pkg="stage_ros" type="stageros" name="stage" output="screen" required="true"
-  args="$(find multilaser_surveillance)/data/simple_4corners2.world" />
+  args="$(find multilaser_surveillance)/data/$(arg world).world" />
 <!--
   args="/opt/ros/kinetic/share/stage/worlds/pioneer_walle.world" />
   args="/opt/ros/kinetic/share/stage_ros/world/willow-erratic.world" />
@@ -37,6 +41,6 @@
 $ rosrun image_view image_view image:=/robot_4/image
 -->
 <node pkg="rviz" type="rviz" name="rviz"
-      args="--display-config $(find multilaser_surveillance)/config/multilaser_surveillance.rviz" />
+      args="--display-config $(find multilaser_surveillance)/config/$(arg world).rviz" />
 </launch>
 
