@@ -3,7 +3,8 @@ Panels:
     Help Height: 71
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Marker1/Namespaces1
       Splitter Ratio: 0.493631005
     Tree Height: 197
   - Class: rviz/Selection
@@ -273,6 +274,14 @@ Visualization Manager:
       Name: people_tracker
       Topic: /people_tracker/pose_array
       Unreliable: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /people_tracker/marker_array
+      Name: people_marker
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:

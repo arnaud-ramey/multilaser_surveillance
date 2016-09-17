@@ -13,6 +13,7 @@
   <depend>cv_bridge</depend>
   <depend>roscpp</depend>
   <depend>tf</depend>
+  <depend>bayes_people_tracker</depend>
 
   <export>
     <rosdoc config="rosdoc.yaml" /> <!-- http://wiki.ros.org/rosdoc_lite -->

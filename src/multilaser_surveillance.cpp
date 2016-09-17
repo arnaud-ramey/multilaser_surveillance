@@ -81,25 +81,61 @@ static inline void createColorMsg
 class ROSMultiLaserSurveillance : public MultiLaserSurveillance<Pt2> {
 public:
   ROSMultiLaserSurveillance() : _nh_private("~") {
-    // retrieve scan_topics & frames
     _static_frame = "/map";
+    _nh_private.param("static_frame", _static_frame, _static_frame);
+    // retrieve scan_topics
     std::string scan_topics_str = "", frames_str = "";
     _nh_private.param("scan_topics", scan_topics_str, scan_topics_str);
-    _nh_private.param("frames", frames_str, frames_str);
     std::vector<std::string> scan_topics, frames;
     StringSplit(scan_topics_str, ";", &scan_topics);
+    // retrieve frames
+    _nh_private.param("frames", frames_str, frames_str);
     StringSplit(frames_str, ";", &frames);
-
     // check params validity
+    if (scan_topics.empty() || frames.empty()) {
+      ROS_FATAL("You must supply both 'scan_topics' and 'frames' params. Cannot init!");
+      ros::shutdown();
+    }
     unsigned int ndev = scan_topics.size();
     if (frames.size() != ndev) {
       ROS_FATAL("Supplied %i scan topics and %i frames, cannot init!",
                 ndev, (int) frames.size());
       ros::shutdown();
     }
-    if (frames.empty()) {
-      ROS_FATAL("You must supply both 'scan_topics' and 'frames' params. Cannot init!");
-      ros::shutdown();
+
+    // get map prefix
+    _map_prefix = "";
+    _nh_private.param("map_prefix", _map_prefix, _map_prefix);
+    // get mode
+    std::string mode_str = "surveillance";
+    _nh_private.param("mode", mode_str, mode_str);
+    _mode = MODE_SURVEILLANCE;
+    if (mode_str.find("BUILD") != std::string::npos
+        || mode_str.find("build") != std::string::npos)
+      _mode = MODE_BUILD_MAP;
+    // get map params
+    if (_mode == MODE_BUILD_MAP) {
+      double xmin, ymin, xmax, ymax, pix2m, inflation_radius;
+      _nh_private.param("xmin", xmin, -10.);
+      _nh_private.param("xmax", xmax, 10.);
+      _nh_private.param("ymin", ymin, -10.);
+      _nh_private.param("ymax", ymax, 10.);
+      _nh_private.param("pix2m", pix2m, DEFAULT_PIX2M);
+      _nh_private.param("inflation_radius", inflation_radius, DEFAULT_INFLATION_RADIUS);
+      ROS_INFO("MODE_BUILD_MAP, static_frame:'%s', map_prefix:'%s', "
+               "map window:(%g, %g)-(%g, %g), pix2m:%g m/pix, inflation_radius:%g m, scan_topics:%s'",
+               _static_frame.c_str(), _map_prefix.c_str(),
+               xmin, ymin, xmax, ymax, pix2m, inflation_radius, scan_topics_str.c_str());
+      // init map
+      _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
+    }
+    else {
+      ROS_INFO("MODE_SURVEILLANCE, static_frame:'%s', map_prefix:'%s', scan_topics:%s'",
+               _static_frame.c_str(), _map_prefix.c_str(), scan_topics_str.c_str());
+      if (!_obstacle_map.load(_map_prefix)) {
+        ROS_FATAL("Could not load map!");
+        ros::shutdown();
+      }
     }
 
     // retrieve TF between each laser frame and _static_frame
@@ -117,7 +153,7 @@ public:
       tf::Vector3 pv = transform.getOrigin();
       Pt2 p; p.x = pv[0]; p.y = pv[1];
       tf::Quaternion q = transform.getRotation();
-      add_device(MultiLaserSurveillance::Device(scan_topics[i], p, tf::getYaw(q)));
+      add_device(MultiLaserSurveillance::SurveillanceDevice(scan_topics[i], p, tf::getYaw(q)));
     } // end for i
 
     // create subscribers
@@ -143,7 +179,7 @@ public:
   }
 
 protected:
-  inline geometry_msgs::Point Pt2ToPoint(const Pt2 & pt) {
+  static inline geometry_msgs::Point Pt2ToPoint(const Pt2 & pt) {
     geometry_msgs::Point out;
     out.x = pt.x;
     out.y = pt.y;
@@ -161,7 +197,7 @@ protected:
     update_scan(device_idx, _buffer);
     publish_outliers();
     publish_scan();
-    publish_map();
+    publish_and_save_map();
     publish_devices_as_markers();
     ROS_INFO_THROTTLE(5, "time for scan_cb(): %g ms", timer.getTimeMilliseconds());
   }
@@ -169,7 +205,7 @@ protected:
   //////////////////////////////////////////////////////////////////////////////
 
   void publish_outliers() {
-    if (_status == STATUS_MAP_NOT_DONE
+    if (_mode == MODE_BUILD_MAP
         || _outliers_pub.getNumSubscribers() == 0
         || _outliers_timer.getTimeSeconds() < .01) // 100 Hz
       return;
@@ -210,7 +246,7 @@ protected:
     _marker_msg.scale.y = 0.2;
     _marker_msg.scale.z = 0.2;
     for (unsigned int i = 0; i < ndevices(); ++i) {
-      Device* d = &(_devices[i]);
+      SurveillanceDevice* d = &(_devices[i]);
       if (d->_last_scan.empty()) // never got a scal
         createColorMsg(_marker_msg.color, 1, 0, 0); // red
       else if (d->_last_scan_timer.getTimeSeconds() > 1)
@@ -226,39 +262,37 @@ protected:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  void publish_map() {
-    if (_status == STATUS_MAP_NOT_DONE
-        || _map_pub.getNumSubscribers() == 0
+  void publish_and_save_map() {
+    if (_map_pub.getNumSubscribers() == 0
         || _map_timer.getTimeSeconds() < 1) // 1 Hz
       return;
     _map_timer.reset();
     // DEBUG_PRINT("publish_map()\n");
-    if (_map_msg.info.height == 0) { //create map
-      int w = _obstacle_map._map.cols, h = _obstacle_map._map.rows;
+    // recreate map if needed
+    unsigned int w = _obstacle_map.get_width(), h = _obstacle_map.get_height();
+    if (_mode == MODE_BUILD_MAP
+        || _map_msg.info.height != h || _map_msg.info.width != w) {
       _map_msg.info.map_load_time = ros::Time::now();
-      _map_msg.info.origin.position.x = _obstacle_map._xmin;
-      _map_msg.info.origin.position.y = _obstacle_map._ymin;
+      _map_msg.info.origin.position.x = _obstacle_map.get_xmin();
+      _map_msg.info.origin.position.y = _obstacle_map.get_ymin();
       _map_msg.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
-      _map_msg.info.resolution = _obstacle_map._pix2m;
+      _map_msg.info.resolution = _obstacle_map.get_pix2m();
       _map_msg.info.width = w;
       _map_msg.info.height = h;
-      _map_msg.data.resize(w * h, 0); // free
-      for (int row = 0; row < h; ++row) {
-        const uchar* data = _obstacle_map._map.ptr<uchar>(row);
-        for (int col = 0; col < w; ++col) {
-          if (data[col])
-            _map_msg.data[col + row * w] = 100; // occupied
-        } // end loop col
-      } // end loop row
+      _obstacle_map.export2vector(_map_msg.data);
     }
     _map_msg.header.stamp = ros::Time::now();
     _map_pub.publish( _map_msg );
+    // save map
+    if (_mode == MODE_BUILD_MAP && !_obstacle_map.save(_map_prefix)) {
+      ROS_WARN("Could not save map into '%s'", _map_prefix.c_str());
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  std::string _static_frame;
+  std::string _static_frame, _map_prefix;
   ros::NodeHandle _nh_public, _nh_private;
   std::vector<ros::Subscriber> _scan_subs;
   ros::Publisher _marker_pub, _scan_pub, _outliers_pub, _map_pub;

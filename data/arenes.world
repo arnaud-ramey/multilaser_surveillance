@@ -4,6 +4,7 @@ include "stage_includes.inc"
 resolution 0.02
 
 interval_sim 100  # simulation timestep in milliseconds
+#~ interval_sim 250  # simulation timestep in milliseconds
 
 # configure the GUI window
 window
@@ -27,14 +28,14 @@ floorplan
 
 # colors: http://www.color-hex.com/color-names.html
 # left to right
-sickmount( pose [ -8    3.7  0  -45  ] ) # 0:left up corner
+sickmount( pose [ -8    1.2  0   45  ] ) # 0:left upper room
 sickmount( pose [ -7    0.7  0  -45  ] ) # 1:bedroom
 sickmount( pose [ -4.1 -2.7  0   45  ] ) # 2:bedroom 2
 sickmount( pose [ -2    0.7  0  -45  ] ) # 3:central (toilets)
 sickmount( pose [ -1.8  3.7  0  225  ] ) # 4:trapeze
 sickmount( pose [ -1.2  3.7  0  -45  ] ) # 5:right to trapeze
 sickmount( pose [ 0    -3.7  0   45  ] ) # 6:living room
-sickmount( pose [ 4     3.7  0  225  ] ) # 7:2 right to trapeze
+sickmount( pose [ 4     1.2  0 -225  ] ) # 7:entrance
 sickmount( pose [ 8     0    0  180  ] ) # 8:center right (garden)
 
 #~ sickmount( pose [ 0 0 0  0  ] ) # origin
