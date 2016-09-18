@@ -219,6 +219,7 @@ protected:
   //////////////////////////////////////////////////////////////////////////////
 
   void publish_scan() {
+    // DEBUG_PRINT("publish_scan()\n");
     if (_scan_pub.getNumSubscribers() == 0
         || _scan_timer.getTimeSeconds() < .01) // 100 Hz
       return;

@@ -1,16 +1,37 @@
 multilaser_surveillance
 =======================
 
+This package provides tools to perform surveillance on a known area.
+The area is watched by a number of fixed 2D laser range finders.
+
+Multimodal tracking is based on the
+[perception stack of the STRANDS project](https://github.com/strands-project/strands_perception_people).
+This stack makes use of
+[```BayesTracking```](https://github.com/LCAS/bayestracking),
+a library of Bayesian tracking.
+For more info, read
+*[Real-time multisensor people tracking for human-robot spatial interaction](http://eprints.lincoln.ac.uk/17545/)*
+by Dondrup and Bellotto.
+
+Steps:
+
+1) Map building:
+
+2)
+
+
 Licence
 =======
+
 BSD
 
 
 Authors
 =======
 
-Maintainer: Arnaud Ramey (arnaud.a.ramey@gmail.com)
-
+  - Package maintainer: Arnaud Ramey (arnaud.a.ramey@gmail.com)
+  - ```strands_perception_people```: [STRANDS project](http://strands.acin.tuwien.ac.at/)
+  - ```BayesTracking``` library: Nicola Bellotto (nbellotto@lincoln.ac.uk)
 
 Compile and install
 ===================
@@ -65,8 +86,7 @@ $ roslaunch multilaser_surveillance stage_arenes.launch
 Publications
 ============
 
-  * `/cluster_centers [geometry_msgs/PoseArray]`
-    In the outliers, the centers of the clusters.
+Map builder:
 
   * `/map [nav_msgs/OccupancyGrid]`
     The map, shaped as an occupancy grid.
@@ -74,15 +94,59 @@ Publications
   * `/marker [visualization_msgs/Marker]`
     A marker showing the outliers and the clusters as colors.
 
+  * `/scan [sensor_msgs/PointCloud]`
+    The merged scan of all lasers, rate: max 1 Hz.
+
+Clusterer:
+
+  * `/cluster_centers [geometry_msgs/PoseArray]`
+    In the outliers, the centers of the clusters.
+
   * `/outliers [sensor_msgs/PointCloud]`
     The points not corresponding to the map.
+
+Tracker:
 
   * `/people_tracker/pose_array [geometry_msgs/PoseArray]`
     The pose of each object, obtained by Bayesian filtering.
 
-  * `/scan [sensor_msgs/PointCloud]`
-    The merged scan of all lasers, rate: max 1 Hz.
 
 Troubleshooting
 ===============
 
+***Problem***:
+The Bayesian tracker does not create tracks
+if my detector framerate is below 5 Hz (200 ms).
+
+***Explanation***:
+By default, the [BayesTracking multitracker](https://github.com/LCAS/bayestracking/blob/dba55e38d59159d6d7a9ef70dd17909e4bdc3084/include/bayes_tracking/multitracker.h) creates tracks if it receives detections at least every 200 ms,
+cf. constructor:
+
+```cpp
+MultiTracker(unsigned int sequenceSize = 5, double sequenceTime = 0.2)
+```
+
+And the embedded ```MultiTracker``` embedded in  [people_tracker/simple_tracking.h](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+uses the default constructor:
+
+```cpp
+MultiTracker<FilterType, 4> mtrk; // state [x, v_x, y, v_y]
+```
+
+***Solution***:
+change ```sequenceTime``` in MultiTracker instantiation.
+
+Open
+[people_tracker/simple_tracking.h](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+
+and change the line
+
+```cpp
+SimpleTracking() {
+```
+
+for:
+
+```cpp
+SimpleTracking() : mtrk(5, .5) {
+```

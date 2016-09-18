@@ -3,8 +3,8 @@ include "stage_includes.inc"
 # set the resolution of the underlying raytrace model in meters
 resolution 0.02
 
-interval_sim 100  # simulation timestep in milliseconds
-#~ interval_sim 250  # simulation timestep in milliseconds
+#~ interval_sim 100  # simulation timestep in milliseconds
+interval_sim 250  # simulation timestep in milliseconds
 
 # configure the GUI window
 window
