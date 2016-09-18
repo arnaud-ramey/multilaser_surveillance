@@ -22,8 +22,8 @@
 <node pkg="tf" type="static_transform_publisher" name="laser3tf"
       args="-7.6  7.6 0   5.498 0 0   map  robot_3/odom   100"/>
 
-<node pkg="multilaser_surveillance" type="multilaser_surveillance.exe"
-  name="mls" required="true" output="screen"
+<node pkg="multilaser_surveillance" type="map_builder_watcher.exe"
+  name="mbw" required="true" output="screen"
   args="_scan_topics:=/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan
         _frames:=/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom" />
 

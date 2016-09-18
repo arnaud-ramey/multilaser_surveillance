@@ -15,10 +15,18 @@ by Dondrup and Bellotto.
 
 Steps:
 
-1) Map building:
+1) ```MapBuilderWatcher```
+  - Build the map based on the stream of laser scans.
 
-2)
+2) ```MapBuilderWatcher```
+  - Compare the streams of laser scans to the map and detect outliers w.r.t. the map
 
+3) ```2dclusterer```
+  - cluster outliers into continuous blobs, and publish their barycenter.
+
+4) ```bayes_people_tracker```
+  - convert the discontinuous blobs barycenters into tracks,
+  using Unscented Kalman Filter.
 
 Licence
 =======
@@ -83,10 +91,32 @@ $ roslaunch multilaser_surveillance stage_arenes.launch  mode:=build
 $ roslaunch multilaser_surveillance stage_arenes.launch
 ```
 
+Parameters
+============
+
+```map_builder_watcher``` - map builder:
+
+  * `~frames [std_msgs/String]`, default ```""```
+    Semi-colon-separated list of the frame of each 2D scan defined in ```~scan_topics```.
+
+  * `~static_frame [std_msgs/String]`, default ```"/map"```
+    The static frame for the map. The scans are converted into this frame.
+
+  * `~mode [std_msgs/String]`, default ```"surveillance"```
+
+  * `~map_prefix [std_msgs/String]`, default ```"mymap"```
+    Where to save or load (according to the mode) the map file.
+    Corresponds to a ```.csv``` and a ```.png``` file
+    (these extensions are aggregated to the parameter value).
+
+  * `~scan_topics [std_msgs/String]`, default ```""```
+    Semi-colon-separated list of topics of 2D scans.
+
+
 Publications
 ============
 
-Map builder:
+```map_builder_watcher``` - map builder:
 
   * `/map [nav_msgs/OccupancyGrid]`
     The map, shaped as an occupancy grid.

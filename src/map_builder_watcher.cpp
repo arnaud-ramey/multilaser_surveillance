@@ -1,5 +1,5 @@
 /*!
-  \file         multilaser_surveillance.cpp
+  \file         map_builder_watcher.cpp
   \author       Arnaud Ramey <arnaud.a.ramey@gmail.com>
                 -- Robotics Lab, University Carlos III of Madrid
   \date         2016/09/05
@@ -20,7 +20,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
   ______________________________________________________________________________
 */
-#include <multilaser_surveillance/wanderer.h>
+#include <multilaser_surveillance/map_builder_watcher.h>
 // ROS
 #include <tf/transform_listener.h>
 // ROS msg
@@ -78,9 +78,9 @@ static inline void createColorMsg
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-class ROSMultiLaserSurveillance : public MultiLaserSurveillance<Pt2> {
+class ROSMapBuilderWatcher : public MapBuilderWatcher<Pt2> {
 public:
-  ROSMultiLaserSurveillance() : _nh_private("~") {
+  ROSMapBuilderWatcher() : _nh_private("~") {
     _static_frame = "/map";
     _nh_private.param("static_frame", _static_frame, _static_frame);
     // retrieve scan_topics
@@ -104,7 +104,7 @@ public:
     }
 
     // get map prefix
-    _map_prefix = "";
+    _map_prefix = "mymap";
     _nh_private.param("map_prefix", _map_prefix, _map_prefix);
     // get mode
     std::string mode_str = "surveillance";
@@ -153,7 +153,7 @@ public:
       tf::Vector3 pv = transform.getOrigin();
       Pt2 p; p.x = pv[0]; p.y = pv[1];
       tf::Quaternion q = transform.getRotation();
-      add_device(MultiLaserSurveillance::SurveillanceDevice(scan_topics[i], p, tf::getYaw(q)));
+      add_device(MapBuilderWatcher::SurveillanceDevice(scan_topics[i], p, tf::getYaw(q)));
     } // end for i
 
     // create subscribers
@@ -163,7 +163,7 @@ public:
       // http://ros-users.122217.n3.nabble.com/How-to-identify-the-subscriber-or-the-topic-name-related-to-a-callback-td2391327.html
       _scan_subs[i] = _nh_public.subscribe<sensor_msgs::LaserScan>
           (scan_topics[i], 0,
-           boost::bind(&ROSMultiLaserSurveillance::scan_cb, this, _1, i));
+           boost::bind(&ROSMapBuilderWatcher::scan_cb, this, _1, i));
     }
 
     // create publishers
@@ -301,12 +301,12 @@ protected:
   visualization_msgs::Marker _marker_msg;
   sensor_msgs::PointCloud _scan_msg, _outliers_msg;
   nav_msgs::OccupancyGrid _map_msg;
-}; // end class ROSMultiLaserSurveillance
+}; // end class ROSMapBuilderWatcher
 
 ////////////////////////////////////////////////////////////////////////////////
 
 int main (int argc, char** argv) {
-  ros::init(argc, argv, "multilaser_surveillance"); //Initialise and create a ROS node
-  ROSMultiLaserSurveillance MultiLaserSurveillance;
+  ros::init(argc, argv, "map_builder_watcher"); //Initialise and create a ROS node
+  ROSMapBuilderWatcher mbw;
   ros::spin();
 }

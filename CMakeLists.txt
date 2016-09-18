@@ -17,10 +17,10 @@ catkin_package(
 ### 7 - Libraries/Executables to build (add_library()/add_executable()/target_link_libraries())
 SET(PKG_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/multilaser_surveillance)
 include_directories( include ${catkin_INCLUDE_DIRS})
-add_executable(multilaser_surveillance.exe
-  src/multilaser_surveillance.cpp
-  ${PKG_INC_DIR}/wanderer.h)
-target_link_libraries(multilaser_surveillance.exe ${catkin_LIBRARIES})
+add_executable(map_builder_watcher.exe
+  src/map_builder_watcher.cpp
+  ${PKG_INC_DIR}/map_builder_watcher.h)
+target_link_libraries(map_builder_watcher.exe ${catkin_LIBRARIES})
 
 add_executable(2dclusterer.exe
   src/2dclusterer.cpp

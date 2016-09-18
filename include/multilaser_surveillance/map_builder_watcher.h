@@ -227,7 +227,7 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 
 template<class Pt2>
-class MultiLaserSurveillance {
+class MapBuilderWatcher {
 public:
   typedef std::vector<Pt2> Scan;
   typedef std::vector<Pt2> OutlierPtList;
@@ -277,7 +277,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  MultiLaserSurveillance() {
+  MapBuilderWatcher() {
     _mode = MODE_BUILD_MAP;
     _map_total_nscans = 0;
     _need_recompute_scan = true;
@@ -398,6 +398,6 @@ protected:
   bool _need_recompute_scan;
   Scan _outliers, _scan;
   bool _need_recompute_outliers;
-}; // end class MultiLaserSurveillance
+}; // end class MapBuilderWatcher
 
 #endif // _WANDERER_H_
