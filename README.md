@@ -13,12 +13,12 @@ For more info, read
 *[Real-time multisensor people tracking for human-robot spatial interaction](http://eprints.lincoln.ac.uk/17545/)*
 by Dondrup and Bellotto.
 
-Steps:
+Steps / pipeline:
 
-1) ```MapBuilderWatcher```
+1) ```MapBuilderWatcher``` - map building mode
   - Build the map based on the stream of laser scans.
 
-2) ```MapBuilderWatcher```
+2) ```MapBuilderWatcher``` - surveillance mode
   - Compare the streams of laser scans to the map and detect outliers w.r.t. the map
 
 3) ```2dclusterer```
@@ -27,6 +27,7 @@ Steps:
 4) ```bayes_people_tracker```
   - convert the discontinuous blobs barycenters into tracks,
   using Unscented Kalman Filter.
+
 
 Licence
 =======
@@ -41,24 +42,9 @@ Authors
   - ```strands_perception_people```: [STRANDS project](http://strands.acin.tuwien.ac.at/)
   - ```BayesTracking``` library: Nicola Bellotto (nbellotto@lincoln.ac.uk)
 
+
 Compile and install
 ===================
-
-ROS Fuerte + rosmake
---------------------
-
-Dependencies with ROS Fuerte:
-
-```bash
-$ sudo apt-get install  ros-fuerte-perception
-```
-
-Compile with rosmake:
-
-```bash
-$ cd cmake ; bash package2rosmake.bash
-$ rosmake multilaser_surveillance
-```
 
 ROS Indigo + catkin
 -------------------
@@ -74,89 +60,159 @@ $ rospack profile
 $ catkin_make --only-pkg-with-deps multilaser_surveillance
 ```
 
+
 Run
 ===
 
   1) Build the map.
-    The map is automatically saved in `multilaser_surveillance/data/maps`.
+  The created map is shown in ```rviz``` :
+  it corresponds to the purple cells, obtained by accumulating the laser scans
+  and inflating of a constant radius around them.
+  The map is automatically saved in `multilaser_surveillance/data/maps`.
 
 ```bash
 $ roslaunch multilaser_surveillance stage_arenes.launch  mode:=build
 ```
 
   2) Perform surveillance.
-    The map is loaded from the same folder.
+  The map is loaded from the same folder.
 
 ```bash
 $ roslaunch multilaser_surveillance stage_arenes.launch
 ```
 
+
+1) & 2) ```MapBuilderWatcher``` - map building & surveillance modes
+===================================================================
+
 Parameters
-============
+----------
 
-```map_builder_watcher``` - map builder:
-
-  * `~frames [std_msgs/String]`, default ```""```
+  * `~frames [string]`, default ```""```.
     Semi-colon-separated list of the frame of each 2D scan defined in ```~scan_topics```.
+    Must be non empty and of the same size as ```~scan_topics```.
 
-  * `~static_frame [std_msgs/String]`, default ```"/map"```
+  * `~static_frame [string]`, default ```"/map"```.
     The static frame for the map. The scans are converted into this frame.
 
-  * `~mode [std_msgs/String]`, default ```"surveillance"```
+  * `~mode [string]`, default ```"surveillance"```.
+    Accepted values are ```"build"``` and ```"surveillance"```.
 
-  * `~map_prefix [std_msgs/String]`, default ```"mymap"```
+  * `~map_prefix [string]`, default ```"mymap"```.
     Where to save or load (according to the mode) the map file.
     Corresponds to a ```.csv``` and a ```.png``` file
     (these extensions are aggregated to the parameter value).
 
-  * `~scan_topics [std_msgs/String]`, default ```""```
+  * `~scan_topics [string]`, default ```""```.
     Semi-colon-separated list of topics of 2D scans.
+    Must be non empty and of the same size as ```~scan_topics```.
 
+  * `~xmin, ~ymin, ~xmax, ~ymax [double, meters]`, default -10,-10,10,10 meters.
+    ONLY IN BUILD MODE.
+    Minimum and maximum values for the map boundaries.
+    Scan values out of this range (in map coordinates) will be discarded.
+
+Subscriptions
+-------------
+
+  * `$(scan_topics) [sensor_msgs/LaserScan]`
+    The different scan streams published by the laser range finders.
+
+  * `/tf [tf2_msgs/TFMessage]`
+    The transforms between the frame of each scan and the ```static_frame```.
 
 Publications
-============
-
-```map_builder_watcher``` - map builder:
+------------
 
   * `/map [nav_msgs/OccupancyGrid]`
     The map, shaped as an occupancy grid.
+    Rate: max 1 Hz.
 
   * `/marker [visualization_msgs/Marker]`
-    A marker showing the outliers and the clusters as colors.
-
-  * `/scan [sensor_msgs/PointCloud]`
-    The merged scan of all lasers, rate: max 1 Hz.
-
-Clusterer:
-
-  * `/cluster_centers [geometry_msgs/PoseArray]`
-    In the outliers, the centers of the clusters.
+    A marker showing the outliers as a red point cloud,
+    and the devices as arrows.
+    Rate: max 1 Hz.
 
   * `/outliers [sensor_msgs/PointCloud]`
-    The points not corresponding to the map.
+    ONLY IN SURVEILLANCE MDOE.
+    The point cloud of all points not belonging to the map.
+    Rate: upon reception of each scan, max 100 Hz.
 
-Tracker:
+  * `/scan [sensor_msgs/PointCloud]`
+    The merged scan of all lasers.
+    Rate: upon reception of each scan, max 100 Hz.
+
+
+3) ```2dclusterer```
+====================
+
+Parameters
+----------
+
+  * `~cluster_tolerance [double, meters]`, default 0.1 meter.
+    The maximum distance between two points to consider them as belonging to the same cluster.
+
+Subscriptions
+-------------
+
+  * `/cloud [sensor_msgs/PointCloud]`
+    The 2D point cloud to cluster, in ```(x, y)```.
+
+Publications
+------------
+
+  * `/cluster_centers [geometry_msgs/PoseArray]`
+    The array containing the center of each cluster.
+    For each center, the orientation is set to 0.
+
+  * `/marker [visualization_msgs/Marker]`
+    A marker showing the clusters as a colored point cloud,
+    where the color corresponds to the cluster ID.
+    Rate: upon reception of each PointCloud.
+
+
+4) ```bayes_people_tracker```
+=============================
+
+Parameters
+----------
+
+  * `detectors.yaml [YAML file]`
+    A YAML file configuring the different detectors.
+    See [STRANDS doc](https://github.com/strands-project/strands_perception_people/tree/indigo-devel/bayes_people_tracker)
+    for more details.
+
+Subscriptions
+-------------
+
+  * `~detectors/*/topic [geometry_msgs/PoseArray]`
+    For each detector configured in the YAML file,
+    the corresponding PoseArray topic.
+
+Publications
+------------
 
   * `/people_tracker/pose_array [geometry_msgs/PoseArray]`
     The pose of each object, obtained by Bayesian filtering.
 
 
 Troubleshooting
-===============
+---------------
 
 ***Problem***:
 The Bayesian tracker does not create tracks
-if my detector framerate is below 5 Hz (200 ms).
+if my detector frame-rate is below 5 Hz (200 ms).
 
 ***Explanation***:
-By default, the [BayesTracking multitracker](https://github.com/LCAS/bayestracking/blob/dba55e38d59159d6d7a9ef70dd17909e4bdc3084/include/bayes_tracking/multitracker.h) creates tracks if it receives detections at least every 200 ms,
+By default, the [BayesTracking multitracker](https://github.com/LCAS/bayestracking/blob/dba55e38d59159d6d7a9ef70dd17909e4bdc3084/include/bayes_tracking/multitracker.h)
+creates tracks if it receives detections at least every 200 ms,
 cf. constructor:
 
 ```cpp
 MultiTracker(unsigned int sequenceSize = 5, double sequenceTime = 0.2)
 ```
 
-And the embedded ```MultiTracker``` embedded in  [people_tracker/simple_tracking.h](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+And the embedded ```MultiTracker``` embedded in  [```people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
 uses the default constructor:
 
 ```cpp
@@ -164,10 +220,9 @@ MultiTracker<FilterType, 4> mtrk; // state [x, v_x, y, v_y]
 ```
 
 ***Solution***:
-change ```sequenceTime``` in MultiTracker instantiation.
-
-Open
-[people_tracker/simple_tracking.h](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+change ```sequenceTime``` in MultiTracker instantiation:
+open
+[```people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
 
 and change the line
 
