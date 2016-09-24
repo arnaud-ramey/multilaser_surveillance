@@ -213,6 +213,10 @@ protected:
     _outliers_msg.header.stamp = ros::Time::now();
     recompute_outliers_if_needed();
     _outliers_msg.points = _outliers;
+    // http://docs.ros.org/kinetic/api/sensor_msgs/html/msg/ChannelFloat32.html
+    _outliers_msg.channels.resize(1);
+    _outliers_msg.channels.front().name = "laser_ids";
+    _outliers_msg.channels.front().values = _outlier_laser_ids;
     _outliers_pub.publish(_outliers_msg);
   }
 

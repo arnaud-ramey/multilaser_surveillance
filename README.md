@@ -152,6 +152,9 @@ Parameters
   * `~cluster_tolerance [double, meters]`, default 0.1 meter.
     The maximum distance between two points to consider them as belonging to the same cluster.
 
+  * `~max_clusters [unsigned int]`, default 20.
+    The maximum number of clusters.
+
 Subscriptions
 -------------
 

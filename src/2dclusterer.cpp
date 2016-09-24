@@ -109,6 +109,9 @@ class ROSClusterer {
 public:
   ROSClusterer() : _nh_private("~") {
     _nh_private.param("cluster_tolerance", _cluster_tolerance, .1);
+    int max_clusters_int; // param() doesn't take "unsigned ints" as inputs
+    _nh_private.param("max_clusters", max_clusters_int, 20);
+    _max_clusters = max_clusters_int;
     _cloud_sub = _nh_public.subscribe<sensor_msgs::PointCloud>
         ("cloud", 0, &ROSClusterer::cloud_cb, this);
     _cluster_centers_pub = _nh_public.advertise<geometry_msgs::PoseArray>( "cluster_centers", 0 );
@@ -122,8 +125,12 @@ public:
     Timer timer;
     cluster(cloud_msg->points, _cluster_indices, _nclusters, _cluster_tolerance);
     barycenters(cloud_msg->points, _cluster_indices, _nclusters, _cluster_centers);
+    if (_nclusters > _max_clusters) {
+      ROS_WARN_THROTTLE(1, "Got %i clusters, while threshold is %i. "
+                        "Not publishing found clusters", _nclusters, _max_clusters);
+      return;
+    }
     //printf("nclusters:%i\n", _nclusters);
-
     // publish _cluster_centers_msg
     _cluster_centers_msg.header = cloud_msg->header;
     _cluster_centers_msg.poses.resize(_nclusters);
@@ -165,7 +172,7 @@ public:
   ros::Publisher _marker_pub, _cluster_centers_pub;
   double _cluster_tolerance;
   std::vector<unsigned int> _cluster_indices;
-  unsigned int _nclusters;
+  unsigned int _nclusters, _max_clusters;
   std::vector<Pt2> _cluster_centers;
   geometry_msgs::PoseArray _cluster_centers_msg;
   visualization_msgs::Marker _marker_msg;

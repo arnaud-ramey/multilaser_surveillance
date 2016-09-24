@@ -149,7 +149,7 @@ public:
 
   inline bool is_occupied(const double & x, const double & y) const {
     if (x <= _xmin || x >= _xmax || y <= _ymin || y >= _ymax)
-      return false; // out of bounds
+      return true; // out of bounds
     return _inflated_map_as_img.at<uchar>(m2pix(x, y));
   }
   template<class Pt2f>
@@ -381,9 +381,12 @@ protected:
       size += _devices[i]._outliers.size();
     _outliers.clear();
     _outliers.reserve(size);
+    _outlier_laser_ids.clear();
+    _outlier_laser_ids.reserve(size);
     for (unsigned int i = 0; i < ndevices(); ++i) {
       SurveillanceDevice* d = &(_devices[i]);
       std::copy(d->_outliers.begin(), d->_outliers.end(), std::back_inserter(_outliers));
+      _outlier_laser_ids.insert(_outlier_laser_ids.end(), d->_outliers.size(), i);
     } // end for i
     return true;
   }
@@ -397,6 +400,10 @@ protected:
   unsigned int _map_total_nscans;
   bool _need_recompute_scan;
   Scan _outliers, _scan;
+  //! For each outlier, the ID of the laser it comes from.
+  //! Should be unsigned short really,
+  //! but must be float for compatibility with sensor_msgs/ChannelFloat32
+  std::vector<float> _outlier_laser_ids;
   bool _need_recompute_outliers;
 }; // end class MapBuilderWatcher
 
