@@ -124,6 +124,30 @@ TEST(TestSuite, circles2) { test_circles(2); }
 TEST(TestSuite, circles3) { test_circles(3); }
 TEST(TestSuite, circles10) { test_circles(10); }
 
+////////////////////////////////////////////////////////////////////////////////
+
+void test_circle_center(double xc, double yc, double radius,
+                        double nptspercircle, double npts/*, double noise = 0*/) {
+  std::vector<Pt2> pts;
+  for (unsigned int pti = 0; pti < npts; ++pti) {
+    double theta = 2. * M_PI * pti / nptspercircle;
+    pts.push_back(Pt2(xc+radius*cos(theta),
+                      yc+radius*sin(theta)));
+  } // end for pti
+  Pt2 ans;
+  bool ok = best_fit_circle(pts, radius, ans);
+  ASSERT_TRUE(ok);
+  ASSERT_PTS_EQ(ans, Pt2(xc, yc), 1E-1);
+}
+
+TEST(TestSuite, fullcircle1) { test_circle_center(0,  0, .1,  10, 10); }
+TEST(TestSuite, fullcircle2) { test_circle_center(1,  2, .1,  10, 10); }
+TEST(TestSuite, fullcircle3) { test_circle_center(-3, 4, 10,  100, 100); }
+TEST(TestSuite, fullcircle4) { test_circle_center(5, -6, 10,  100, 100); }
+TEST(TestSuite, halfcircle1) { test_circle_center(0,  0, .1,  10, 5); }
+TEST(TestSuite, halfcircle2) { test_circle_center(1,  2, .1,  10, 5); }
+TEST(TestSuite, halfcircle3) { test_circle_center(-3, 4, 10,  100, 50); }
+TEST(TestSuite, halfcircle4) { test_circle_center(5, -6, 10,  100, 25); }
 
 ////////////////////////////////////////////////////////////////////////////////
 

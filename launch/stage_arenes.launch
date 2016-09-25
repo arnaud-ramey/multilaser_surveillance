@@ -52,6 +52,8 @@
   name="clusterer" required="true" output="screen">
   <remap from="cloud" to="outliers"/>
   <param name="cluster_tolerance" value="0.4"/>
+  <param name="center_computation_method" value="fit"/>
+  <param name="object_radius" value="0.205"/> <!-- sizes: 0.440 x 0.380 so hypot = 0.29 -->
 </node>
 
 <!-- Bayesian filter -->

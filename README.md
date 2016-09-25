@@ -152,8 +152,20 @@ Parameters
   * `~cluster_tolerance [double, meters]`, default 0.1 meter.
     The maximum distance between two points to consider them as belonging to the same cluster.
 
+  * `~center_computation_method [std::string]`, default "fit".
+    Accepted values: "fit" or "barycenter".
+    Method to compute the center of each cluster,
+    either by computing its barycenter,
+    or by trying to best fit a circle of radius `~objects_radius`.
+
   * `~max_clusters [unsigned int]`, default 20.
     The maximum number of clusters.
+    Useful to avoid saturating the Bayesian tracker.
+
+  * `~objects_radius [double, meters]`, default 0.5 meters.
+    The radius of the objects to track.
+    Only used in `center_computation_method = "fit"`.
+
 
 Subscriptions
 -------------

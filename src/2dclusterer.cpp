@@ -107,10 +107,22 @@ inline void indexed_color_norm(float & r, float & g, float & b,
 
 class ROSClusterer {
 public:
+  enum CenterComputation {
+    CENTER_COMPUTATION_METHOD_BARYCENTER = 0,
+    CENTER_COMPUTATION_METHOD_FIT_CIRCLE = 1
+  };
+
   ROSClusterer() : _nh_private("~") {
     _nh_private.param("cluster_tolerance", _cluster_tolerance, .1);
     int max_clusters_int; // param() doesn't take "unsigned ints" as inputs
     _nh_private.param("max_clusters", max_clusters_int, 20);
+    std::string center_computation_method_str = "fit";
+    _nh_private.param("center_computation_method", center_computation_method_str, center_computation_method_str);
+    _nh_private.param("objects_radius", _objects_radius, .5);
+    _center_computation_method = CENTER_COMPUTATION_METHOD_FIT_CIRCLE;
+    if (center_computation_method_str.find("barycenter") != std::string::npos)
+      _center_computation_method = CENTER_COMPUTATION_METHOD_BARYCENTER;
+
     _max_clusters = max_clusters_int;
     _cloud_sub = _nh_public.subscribe<sensor_msgs::PointCloud>
         ("cloud", 0, &ROSClusterer::cloud_cb, this);
@@ -124,10 +136,18 @@ public:
       return;
     Timer timer;
     cluster(cloud_msg->points, _cluster_indices, _nclusters, _cluster_tolerance);
-    barycenters(cloud_msg->points, _cluster_indices, _nclusters, _cluster_centers);
+    if (_center_computation_method == CENTER_COMPUTATION_METHOD_BARYCENTER)
+      barycenters(cloud_msg->points, _cluster_indices, _nclusters, _cluster_centers);
+    else if (_center_computation_method == CENTER_COMPUTATION_METHOD_FIT_CIRCLE
+             && !best_fit_circles(cloud_msg->points, _cluster_indices,
+                                  _nclusters, _objects_radius, _cluster_centers)) {
+      printf( "best_fit_circles() returned an error.\n");
+      return;
+    }
+
     if (_nclusters > _max_clusters) {
       ROS_WARN_THROTTLE(1, "Got %i clusters, while threshold is %i. "
-                        "Not publishing found clusters", _nclusters, _max_clusters);
+                           "Not publishing found clusters", _nclusters, _max_clusters);
       return;
     }
     //printf("nclusters:%i\n", _nclusters);
@@ -170,9 +190,10 @@ public:
   ros::NodeHandle _nh_public, _nh_private;
   ros::Subscriber _cloud_sub;
   ros::Publisher _marker_pub, _cluster_centers_pub;
-  double _cluster_tolerance;
+  double _cluster_tolerance, _objects_radius;
   std::vector<unsigned int> _cluster_indices;
   unsigned int _nclusters, _max_clusters;
+  CenterComputation _center_computation_method;
   std::vector<Pt2> _cluster_centers;
   geometry_msgs::PoseArray _cluster_centers_msg;
   visualization_msgs::Marker _marker_msg;
