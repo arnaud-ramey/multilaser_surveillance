@@ -9,9 +9,9 @@ interval_sim 250  # simulation timestep in milliseconds
 # configure the GUI window
 window
 (
-  size [ 800 600 ] # in pixels
-  scale 35   # pixels per meter
-  center [ 0 1 ]
+  size [ 1364 371 ] # in pixels
+  scale 31.818   # pixels per meter
+  center [ 9.170 5.323 ]
   rotate [ 27.500  0.000 ]
 
   show_data 1              # 1=on 0=off
@@ -22,21 +22,22 @@ floorplan
 (
   name "arenes"
   size [17.000 8.000 0.800]
-  pose [0.000 0.000 0.000 0.000]
+  pose [8.500  4.000 0.000 0.000]
   bitmap "bitmaps/arenes.png"
 )
 
 # colors: http://www.color-hex.com/color-names.html
 # left to right
-sickmount( pose [ -8    1.2  0   45  ] ) # 0:left upper room
-sickmount( pose [ -7    0.7  0  -45  ] ) # 1:bedroom
-sickmount( pose [ -4.1 -2.7  0   45  ] ) # 2:bedroom 2
-sickmount( pose [ -2    0.7  0  -45  ] ) # 3:central (toilets)
-sickmount( pose [ -1.8  3.7  0  225  ] ) # 4:trapeze
-sickmount( pose [ -1.2  3.7  0  -45  ] ) # 5:right to trapeze
-sickmount( pose [ 0    -3.7  0   45  ] ) # 6:living room
-sickmount( pose [ 4     1.2  0 -225  ] ) # 7:entrance
-sickmount( pose [ 8     0    0  180  ] ) # 8:center right (garden)
+sickmount( pose [ 0.500     5.200  0.000   45.000  ] ) # 0:left upper room
+sickmount( pose [ 1.500     4.700  0.000  -45.000  ] ) # 1:bedroom
+sickmount( pose [ 4.600   2.700  0.000   45.000  ] ) # 2:bedroom 2
+sickmount( pose [ 6.500   4.700  0.000  -45.000  ] ) # 3:central (toilets)
+
+sickmount( pose [ 6.700   7.700  0.000  -135.000  ] ) # 4:trapeze
+sickmount( pose [ 7.300   7.700  0.000  -45.000  ] ) # 5:right to trapeze
+sickmount( pose [ 8.500   0.700  0.000   45.000  ] ) # 6:living room
+sickmount( pose [ 12.500  5.200  0.000 135.000  ] ) # 7:entrance
+sickmount( pose [ 16.500  4.000    0.000  180.000  ] ) # 8:center right (garden)
 
 #~ sickmount( pose [ 0 0 0  0  ] ) # origin
 
@@ -45,13 +46,13 @@ pioneer2dx_no_sonar
 (
   # can refer to the robot by this name
   name "r0"
-  pose [ 2 6 0.000 -90.000 ]
+  pose [ 10.500 10.000 0.000 -90.000 ]
   fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
   camera
   (
     # laser properties
     resolution [ 160 120 ]
-    range [ 0.2 8.0 ]
+    range [ 0.2 81.0 ] # 8 meters
     fov [ 70.0 40.0 ]
     pantilt [ 0.0 0.0 ]
 
@@ -66,13 +67,13 @@ pioneer2dx_no_sonar
 pioneer2dx_no_sonar
 (
   color "green"
-  pose [ 3 6 0.000 -90.000 ]
+  pose [ 11.500 10.000 0.000 -90.000 ]
   fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
 )
 pioneer2dx_no_sonar
 (
   color "blue"
-  pose [ 4 6 0.000 -90.000 ]
+  pose [ 12.500 10.000 0.000 -90.000 ]
   fancysick(pose [ 0.250 0.000 -0.200 0.000 ])
 )
 

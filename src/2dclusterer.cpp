@@ -107,6 +107,7 @@ inline void indexed_color_norm(float & r, float & g, float & b,
 
 class ROSClusterer {
 public:
+  static const unsigned int NPTS_PER_CIRCLE_MARKER = 20;
   enum CenterComputation {
     CENTER_COMPUTATION_METHOD_BARYCENTER = 0,
     CENTER_COMPUTATION_METHOD_FIT_CIRCLE = 1
@@ -128,6 +129,19 @@ public:
         ("cloud", 0, &ROSClusterer::cloud_cb, this);
     _cluster_centers_pub = _nh_public.advertise<geometry_msgs::PoseArray>( "cluster_centers", 0 );
     _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
+    _radiuscos.resize(NPTS_PER_CIRCLE_MARKER);
+    _radiussin.resize(NPTS_PER_CIRCLE_MARKER);
+    for (unsigned int j = 0; j < NPTS_PER_CIRCLE_MARKER; ++j) {
+      double theta = j * M_2_PI / NPTS_PER_CIRCLE_MARKER;
+      _radiuscos[j] = _objects_radius * cos(theta);
+      _radiussin[j] = _objects_radius * sin(theta);
+    } // end for j
+
+
+    ROS_INFO("ROSClusterer: cluster_tolerance:%g m, max: %i clusters, "
+             "center_computation_method:%i, objects_radius:%g m",
+             _cluster_tolerance, _max_clusters,
+             _center_computation_method, _objects_radius);
   }
 
   void cloud_cb(const sensor_msgs::PointCloud::ConstPtr& cloud_msg) {
@@ -163,24 +177,53 @@ public:
     _cluster_centers_pub.publish(_cluster_centers_msg);
 
     // publish markers
-    _marker_msg.header = cloud_msg->header;
-    _marker_msg.type = visualization_msgs::Marker::POINTS;
-    _marker_msg.action = visualization_msgs::Marker::ADD;
-    _marker_msg.ns = "clusters";
-    _marker_msg.id = 0; // unique identifier
-    _marker_msg.scale.x = 0.2;
-    _marker_msg.scale.y = 0.2;
-    _marker_msg.scale.z = 0.2;
-    copy_vec(cloud_msg->points, _marker_msg.points);
-    unsigned int npts = cloud_msg->points.size();
-    _marker_msg.colors.resize(npts);
-    for (unsigned int i = 0; i < npts; ++i) {
-      _marker_msg.points[i].z = 0.5; // a bit higher for readability
-      _marker_msg.colors[i].a = 1; // no transparency
-      indexed_color_norm(_marker_msg.colors[i].r, _marker_msg.colors[i].g, _marker_msg.colors[i].b,
-                         _cluster_indices[i]);
-    }
-    _marker_pub.publish( _marker_msg );
+    if (_marker_pub.getNumSubscribers()) {
+      _marker_msg.header = cloud_msg->header;
+      _marker_msg.ns = "clusters";
+      _marker_msg.action = visualization_msgs::Marker::ADD;
+      // publish cluster clouds
+      _marker_msg.points.clear();
+      _marker_msg.type = visualization_msgs::Marker::POINTS;
+      _marker_msg.id = 0; // unique identifier
+      _marker_msg.scale.x = 0.2;
+      _marker_msg.scale.y = 0.2;
+      _marker_msg.scale.z = 0.2;
+      copy_vec(cloud_msg->points, _marker_msg.points);
+      unsigned int npts = cloud_msg->points.size();
+      _marker_msg.colors.resize(npts);
+      for (unsigned int i = 0; i < npts; ++i) {
+        _marker_msg.points[i].z = 0.5; // a bit higher for readability
+        _marker_msg.colors[i].a = 1; // no transparency
+        indexed_color_norm(_marker_msg.colors[i].r, _marker_msg.colors[i].g, _marker_msg.colors[i].b,
+                           _cluster_indices[i]);
+      }
+      _marker_pub.publish( _marker_msg );
+
+      // publish a circle for each fitted circle
+      _marker_msg.ns = "fitted_circles";
+      _marker_msg.type = visualization_msgs::Marker::LINE_STRIP;
+      _marker_msg.colors.clear();
+      // Line strips use the points member of the visualization_msgs/Marker message.
+      // It will draw a line between every two consecutive points, so 0-1, 1-2, 2-3, 3-4, 4-5...
+      // Line strips also have some special handling for scale:
+      // only scale.x is used and it controls the width of the line segments.
+      _marker_msg.scale.x = 0.05;
+      _marker_msg.points.resize(NPTS_PER_CIRCLE_MARKER);
+      for (unsigned int ci = 0; ci < _nclusters; ++ci) {
+        _marker_msg.id = ci; // unique identifier
+        // In visualization 1.1+ will also optionally use the colors member for per-vertex color.
+        indexed_color_norm(_marker_msg.color.r, _marker_msg.color.g, _marker_msg.color.b, ci);
+        _marker_msg.color.a = 1; // no transparency
+        for (unsigned int j = 0; j < NPTS_PER_CIRCLE_MARKER; ++j) {
+          // Note that pose is still used (the points in the line will be transformed by them),
+          // and the lines will be correct relative to the frame id specified in the header.
+          _marker_msg.points[j].x = _cluster_centers[ci].x + _radiuscos[j];
+          _marker_msg.points[j].y = _cluster_centers[ci].y + _radiussin[j];
+          _marker_msg.points[j].z = .1;
+        } // end for j
+        _marker_pub.publish( _marker_msg );
+      } // end for ci
+    } // end if (_marker_pub.getNumSubscribers())
 
     ROS_INFO_THROTTLE(5, "time for cloud_cb(%g): %g ms",
                       _cluster_tolerance, timer.getTimeMilliseconds());
@@ -197,6 +240,7 @@ public:
   std::vector<Pt2> _cluster_centers;
   geometry_msgs::PoseArray _cluster_centers_msg;
   visualization_msgs::Marker _marker_msg;
+  std::vector<double> _radiuscos, _radiussin;
 }; // end class ROSClusterer
 
 int main(int argc, char **argv) {
