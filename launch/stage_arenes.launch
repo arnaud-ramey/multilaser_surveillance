@@ -54,7 +54,8 @@
   <remap from="cloud" to="outliers"/>
   <param name="cluster_tolerance" value="0.4"/>
   <param name="center_computation_method" value="fit"/>
-  <param name="objects_radius" value="0.205"/> <!-- sizes: 0.440 x 0.380, we take average -->
+  <!-- sizes: 0.440 x 0.380, so min radius=0.19, and max radius=hypot=0.29, we take average=0.245 -->
+  <param name="objects_radius" value="0.245"/>
 </node>
 
 <!-- Bayesian filter -->
@@ -63,6 +64,16 @@
     <param name="target_frame" value="/map"/>
 </node>
 
+<!-- pose_matcher -->
+<node pkg="multilaser_surveillance" type="pose_matcher.exe"
+  name="pose_matcher" required="true" output="screen">
+  <remap from="/pose_matcher/estimated_poses" to="/people_tracker/pose_array"/>
+  <param name="ground_truth_topics" value="/robot_9/odom;/robot_10/odom;/robot_11/odom"/>
+</node>
+
+<!-- pose_matcher plot -->
+<node pkg="rqt_plot" type="rqt_plot" name="dist_plot"
+      args="/pose_matcher/dist"/>
 
 <!-- rviz
 $ rosrun image_view image_view image:=/robot_4/image

@@ -39,6 +39,9 @@ add_executable(2dclusterer.exe
   ${PKG_INC_DIR}/2dclusterer.h)
 target_link_libraries(2dclusterer.exe  lmfit  ${catkin_LIBRARIES})
 
+add_executable(pose_matcher.exe src/pose_matcher.cpp)
+target_link_libraries(pose_matcher.exe  ${catkin_LIBRARIES})
+
 
 ### 8 - Tests to build (catkin_add_gtest())
 catkin_add_gtest(gtest_clusterer  test/gtest_clusterer.cpp)

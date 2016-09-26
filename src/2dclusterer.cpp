@@ -132,11 +132,11 @@ public:
     _radiuscos.resize(NPTS_PER_CIRCLE_MARKER);
     _radiussin.resize(NPTS_PER_CIRCLE_MARKER);
     for (unsigned int j = 0; j < NPTS_PER_CIRCLE_MARKER; ++j) {
-      double theta = j * M_2_PI / NPTS_PER_CIRCLE_MARKER;
+      double theta = j * 2 * M_PI / (NPTS_PER_CIRCLE_MARKER-1);
       _radiuscos[j] = _objects_radius * cos(theta);
       _radiussin[j] = _objects_radius * sin(theta);
     } // end for j
-
+    _marker_msg.lifetime = ros::Duration(1);
 
     ROS_INFO("ROSClusterer: cluster_tolerance:%g m, max: %i clusters, "
              "center_computation_method:%i, objects_radius:%g m",
@@ -185,9 +185,7 @@ public:
       _marker_msg.points.clear();
       _marker_msg.type = visualization_msgs::Marker::POINTS;
       _marker_msg.id = 0; // unique identifier
-      _marker_msg.scale.x = 0.2;
-      _marker_msg.scale.y = 0.2;
-      _marker_msg.scale.z = 0.2;
+      _marker_msg.scale.x = _marker_msg.scale.y = _marker_msg.scale.z = 0.05; // 5 cm
       copy_vec(cloud_msg->points, _marker_msg.points);
       unsigned int npts = cloud_msg->points.size();
       _marker_msg.colors.resize(npts);

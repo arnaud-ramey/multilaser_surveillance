@@ -46,16 +46,16 @@ Authors
 Compile and install
 ===================
 
-ROS Indigo + catkin
+ROS Kinetic + catkin
 -------------------
 
 Compile with [catkin_make](http://wiki.ros.org/catkin/commands/catkin_make):
 
 ```bash
+$ sudo apt install ros-kinetic-people-msgs
 $ roscd ; cd src
 $ git clone https://github.com/strands-project/strands_perception_people.git
 $ git clone https://github.com/LCAS/bayestracking.git
-$ git clone https://github.com/wg-perception/people.git
 $ rospack profile
 $ catkin_make --only-pkg-with-deps multilaser_surveillance
 ```
