@@ -58,6 +58,7 @@ void estimated_poses_cb(const geometry_msgs::PoseArray::ConstPtr& poses_msg) {
     } // end for oi
     dist_msg.data += mindist;
   } // end for pi
+  dist_msg.data  *= 1. / nposes; // normalize
   dist_pub.publish(dist_msg);
 }
 

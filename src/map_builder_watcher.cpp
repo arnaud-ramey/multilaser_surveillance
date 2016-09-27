@@ -39,14 +39,8 @@ static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & lase
                                              std::vector<_Pt2> & out_vector) {
   out_vector.clear();
   unsigned int npts = laser_msg.ranges.size();
-  if (laser_msg.intensities.size() != npts) {
-    printf("Scan size %i and intensity size %i don't match!\n",
-           npts, (int) laser_msg.intensities.size());
-    return;
-  }
   out_vector.reserve(npts);
   const float* curr_range = &(laser_msg.ranges[0]);
-  const float* curr_intensity = &(laser_msg.intensities[0]);
   float curr_angle = laser_msg.angle_min,
       min_range = laser_msg.range_min,
       max_range = laser_msg.range_max;
@@ -59,7 +53,6 @@ static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & lase
       out_vector.push_back(pt);
     }
     ++curr_range;
-    ++curr_intensity;
     curr_angle += laser_msg.angle_increment;
   } // end loop idx
 } // end convert_sensor_data_to_xy()
