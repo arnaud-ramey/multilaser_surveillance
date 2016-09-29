@@ -30,6 +30,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 
 typedef geometry_msgs::Point32 Pt2;
+typedef nav_msgs::OccupancyGrid ObstacleMap;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -71,7 +72,7 @@ static inline void createColorMsg
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-class ROSMapBuilderWatcher : public MapBuilderWatcher<Pt2> {
+class ROSMapBuilderWatcher : public MapBuilderWatcher<Pt2, ObstacleMap> {
 public:
   ROSMapBuilderWatcher() : _nh_private("~") {
     _static_frame = "/map";
@@ -113,23 +114,30 @@ public:
       _nh_private.param("xmax", xmax, 10.);
       _nh_private.param("ymin", ymin, -10.);
       _nh_private.param("ymax", ymax, 10.);
-      _nh_private.param("pix2m", pix2m, DEFAULT_PIX2M);
+      _nh_private.param("pix2m", pix2m, DEFAULT_cell2m);
       _nh_private.param("inflation_radius", inflation_radius, DEFAULT_INFLATION_RADIUS);
       ROS_INFO("MODE_BUILD_MAP, static_frame:'%s', map_prefix:'%s', "
                "map window:(%g, %g)-(%g, %g), pix2m:%g m/pix, inflation_radius:%g m, scan_topics:%s'",
                _static_frame.c_str(), _map_prefix.c_str(),
                xmin, ymin, xmax, ymax, pix2m, inflation_radius, scan_topics_str.c_str());
       // init map
-      _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
+      _obstacle_map.header.frame_id = _static_frame;
+      _obstacle_map.info.width  = 1 + (xmax - xmin) / pix2m;
+      _obstacle_map.info.height = 1 + (ymax - ymin) / pix2m;
+      _obstacle_map.info.resolution = pix2m; //  The map resolution [m/cell]
+      _obstacle_map.info.origin.position.x = xmin;
+      _obstacle_map.info.origin.position.y = ymin;
+      _obstacle_map.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
     }
     else {
       ROS_INFO("MODE_SURVEILLANCE, static_frame:'%s', map_prefix:'%s', scan_topics:%s'",
                _static_frame.c_str(), _map_prefix.c_str(), scan_topics_str.c_str());
-      if (!_obstacle_map.load(_map_prefix)) {
-        ROS_FATAL("Could not load map!");
-        ros::shutdown();
-      }
+//      if (!_obstacle_map.load(_map_prefix)) {
+//        ROS_FATAL("Could not load map!");
+//        ros::shutdown();
+//      }
     }
+    compute_map_bounds();
 
     // retrieve TF between each laser frame and _static_frame
     tf::TransformListener listener;
@@ -164,7 +172,6 @@ public:
     _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
     _outliers_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
     _scan_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "scan", 0 );
-    _map_msg.header = _marker_msg.header;
     _marker_msg.header.frame_id = _static_frame;
     _marker_msg.id = 0;
     _outliers_msg.header = _marker_msg.header;
@@ -172,6 +179,39 @@ public:
   }
 
 protected:
+
+  void compute_map_bounds() {
+    _xmin = _obstacle_map.info.origin.position.x;
+    _ymin = _obstacle_map.info.origin.position.y;
+    _xmax = _xmin + _obstacle_map.info.width * _obstacle_map.info.resolution;
+    _ymax = _ymin + _obstacle_map.info.height * _obstacle_map.info.resolution;
+    _m2cell = 1. / _obstacle_map.info.resolution;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_occupied(const ObstacleMap & map, const Pt2 & pt) {
+    if (pt.x < _xmin || pt.x >= _xmax || pt.y < _ymin || pt.y >= _ymax)
+      return true; // out of bounds
+    int col = (pt.x - _xmin) * _m2cell;
+    int row = (pt.y - _ymin) * _m2cell;
+    return (map.data[col + row * _obstacle_map.info.width]);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  virtual bool add_obstacle(ObstacleMap & map, const Pt2 & pt) {
+    if (pt.x < _xmin || pt.x >= _xmax || pt.y < _ymin || pt.y >= _ymax)
+      return false; // out of bounds
+    int col = (pt.x - _xmin) * _m2cell;
+    int row = (pt.y - _ymin) * _m2cell;
+    map.data[col + row * _obstacle_map.info.width] = 255;
+    return true;
+  }
+
+
+  //////////////////////////////////////////////////////////////////////////////
+
   static inline geometry_msgs::Point Pt2ToPoint(const Pt2 & pt) {
     geometry_msgs::Point out;
     out.x = pt.x;
@@ -266,25 +306,13 @@ protected:
       return;
     _map_timer.reset();
     // DEBUG_PRINT("publish_map()\n");
-    // recreate map if needed
-    unsigned int w = _obstacle_map.get_width(), h = _obstacle_map.get_height();
-    if (_mode == MODE_BUILD_MAP
-        || _map_msg.info.height != h || _map_msg.info.width != w) {
-      _map_msg.info.map_load_time = ros::Time::now();
-      _map_msg.info.origin.position.x = _obstacle_map.get_xmin();
-      _map_msg.info.origin.position.y = _obstacle_map.get_ymin();
-      _map_msg.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
-      _map_msg.info.resolution = _obstacle_map.get_pix2m();
-      _map_msg.info.width = w;
-      _map_msg.info.height = h;
-      _obstacle_map.export2vector(_map_msg.data);
-    }
-    _map_msg.header.stamp = ros::Time::now();
-    _map_pub.publish( _map_msg );
+    //unsigned int w = _obstacle_map.info.width, h = _obstacle_map.info.height;
+    _obstacle_map.header.stamp = _obstacle_map.info.map_load_time = ros::Time::now();
+    _map_pub.publish( _obstacle_map );
     // save map
-    if (_mode == MODE_BUILD_MAP && !_obstacle_map.save(_map_prefix)) {
-      ROS_WARN("Could not save map into '%s'", _map_prefix.c_str());
-    }
+    //if (_mode == MODE_BUILD_MAP && !_obstacle_map.save(_map_prefix)) {
+    //  ROS_WARN("Could not save map into '%s'", _map_prefix.c_str());
+    //}
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -297,7 +325,7 @@ protected:
   Timer _marker_timer, _scan_timer, _outliers_timer, _map_timer;
   visualization_msgs::Marker _marker_msg;
   sensor_msgs::PointCloud _scan_msg, _outliers_msg;
-  nav_msgs::OccupancyGrid _map_msg;
+  double _xmin, _ymin, _xmax, _ymax, _m2cell;
 }; // end class ROSMapBuilderWatcher
 
 ////////////////////////////////////////////////////////////////////////////////
