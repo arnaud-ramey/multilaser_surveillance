@@ -10,10 +10,11 @@
   <license>LGPLv3</license>
   <!-- dependencies -->
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>bayes_people_tracker</depend>
   <depend>cv_bridge</depend>
+  <depend>people_msgs</depend>
   <depend>roscpp</depend>
   <depend>tf</depend>
-  <depend>bayes_people_tracker</depend>
 
   <export>
     <rosdoc config="rosdoc.yaml" /> <!-- http://wiki.ros.org/rosdoc_lite -->
