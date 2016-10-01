@@ -55,7 +55,7 @@ Compile with [catkin_make](http://wiki.ros.org/catkin/commands/catkin_make):
 $ sudo apt install ros-kinetic-people-msgs
 $ roscd ; cd src
 $ svn co https://github.com/strands-project/strands_perception_people/trunk/bayes_people_tracker
-$ git clone https://github.com/LCAS/bayestracking.git
+$ git clone https://github.com/LCAS/bayestracking.git bayes_tracking
 $ rospack profile
 $ catkin_make --only-pkg-with-deps multilaser_surveillance
 ```

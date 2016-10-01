@@ -109,35 +109,41 @@ public:
       _mode = MODE_BUILD_MAP;
     // get map params
     if (_mode == MODE_BUILD_MAP) {
-      double xmin, ymin, xmax, ymax, pix2m, inflation_radius;
-      _nh_private.param("xmin", xmin, -10.);
-      _nh_private.param("xmax", xmax, 10.);
-      _nh_private.param("ymin", ymin, -10.);
-      _nh_private.param("ymax", ymax, 10.);
-      _nh_private.param("pix2m", pix2m, DEFAULT_cell2m);
-      _nh_private.param("inflation_radius", inflation_radius, DEFAULT_INFLATION_RADIUS);
+      _nh_private.param("xmin", _xmin, -10.);
+      _nh_private.param("xmax", _xmax, 10.);
+      _nh_private.param("ymin", _ymin, -10.);
+      _nh_private.param("ymax", _ymax, 10.);
+      _nh_private.param("cell2m", _cell2m, DEFAULT_CELL2M);
+      _m2cell = 1. / _cell2m;
+      _nh_private.param("inflation_radius", _inflation_radius, DEFAULT_INFLATION_RADIUS);
       ROS_INFO("MODE_BUILD_MAP, static_frame:'%s', map_prefix:'%s', "
-               "map window:(%g, %g)-(%g, %g), pix2m:%g m/pix, inflation_radius:%g m, scan_topics:%s'",
+               "map window:(%g, %g)-(%g, %g), cell2m:%g m/pix, inflation_radius:%g m, scan_topics:%s'",
                _static_frame.c_str(), _map_prefix.c_str(),
-               xmin, ymin, xmax, ymax, pix2m, inflation_radius, scan_topics_str.c_str());
+               _xmin, _ymin, _xmax, _ymax, _cell2m, _inflation_radius, scan_topics_str.c_str());
       // init map
       _obstacle_map.header.frame_id = _static_frame;
-      _obstacle_map.info.width  = 1 + (xmax - xmin) / pix2m;
-      _obstacle_map.info.height = 1 + (ymax - ymin) / pix2m;
-      _obstacle_map.info.resolution = pix2m; //  The map resolution [m/cell]
-      _obstacle_map.info.origin.position.x = xmin;
-      _obstacle_map.info.origin.position.y = ymin;
+      _obstacle_map.info.width  = 1 + (_xmax - _xmin) / _cell2m;
+      _obstacle_map.info.height = 1 + (_ymax - _ymin) / _cell2m;
+      _obstacle_map.info.resolution = _cell2m; //  The map resolution [m/cell]
+      _obstacle_map.info.origin.position.x = _xmin;
+      _obstacle_map.info.origin.position.y = _ymin;
       _obstacle_map.info.origin.orientation = tf::createQuaternionMsgFromYaw(0);
+      _obstacle_map.data.resize(_obstacle_map.info.width*_obstacle_map.info.height,0);
     }
     else {
       ROS_INFO("MODE_SURVEILLANCE, static_frame:'%s', map_prefix:'%s', scan_topics:%s'",
                _static_frame.c_str(), _map_prefix.c_str(), scan_topics_str.c_str());
-//      if (!_obstacle_map.load(_map_prefix)) {
-//        ROS_FATAL("Could not load map!");
-//        ros::shutdown();
-//      }
+      //      if (!_obstacle_map.load(_map_prefix)) {
+      //        ROS_FATAL("Could not load map!");
+      //        ros::shutdown();
+      //      }
+      _xmin = _obstacle_map.info.origin.position.x;
+      _ymin = _obstacle_map.info.origin.position.y;
+      _xmax = _xmin + _obstacle_map.info.width * _obstacle_map.info.resolution;
+      _ymax = _ymin + _obstacle_map.info.height * _obstacle_map.info.resolution;
+      _cell2m = _obstacle_map.info.resolution;
+      _m2cell = 1. / _cell2m;
     }
-    compute_map_bounds();
 
     // retrieve TF between each laser frame and _static_frame
     tf::TransformListener listener;
@@ -180,14 +186,6 @@ public:
 
 protected:
 
-  void compute_map_bounds() {
-    _xmin = _obstacle_map.info.origin.position.x;
-    _ymin = _obstacle_map.info.origin.position.y;
-    _xmax = _xmin + _obstacle_map.info.width * _obstacle_map.info.resolution;
-    _ymax = _ymin + _obstacle_map.info.height * _obstacle_map.info.resolution;
-    _m2cell = 1. / _obstacle_map.info.resolution;
-  }
-
   //////////////////////////////////////////////////////////////////////////////
 
   virtual bool is_occupied(const ObstacleMap & map, const Pt2 & pt) {
@@ -202,10 +200,11 @@ protected:
 
   virtual bool add_obstacle(ObstacleMap & map, const Pt2 & pt) {
     if (pt.x < _xmin || pt.x >= _xmax || pt.y < _ymin || pt.y >= _ymax)
-      return false; // out of bounds
+      return true; // out of bounds but OK
     int col = (pt.x - _xmin) * _m2cell;
     int row = (pt.y - _ymin) * _m2cell;
-    map.data[col + row * _obstacle_map.info.width] = 255;
+    ROS_INFO_THROTTLE(1, "add_obstacle(%g, %g)->(%i,%i)", pt.x, pt.y, col, row);
+    map.data[col + row * map.info.width] = 127;
     return true;
   }
 
@@ -325,7 +324,7 @@ protected:
   Timer _marker_timer, _scan_timer, _outliers_timer, _map_timer;
   visualization_msgs::Marker _marker_msg;
   sensor_msgs::PointCloud _scan_msg, _outliers_msg;
-  double _xmin, _ymin, _xmax, _ymax, _m2cell;
+  double _xmin, _ymin, _xmax, _ymax, _m2cell, _cell2m, _inflation_radius;
 }; // end class ROSMapBuilderWatcher
 
 ////////////////////////////////////////////////////////////////////////////////

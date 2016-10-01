@@ -31,6 +31,7 @@ SET(PKG_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/multilaser_surveillance)
 include_directories(include ${catkin_INCLUDE_DIRS})
 add_executable(map_builder_watcher.exe
   src/map_builder_watcher.cpp
+  ${PKG_INC_DIR}/lite_obstacle_map.h
   ${PKG_INC_DIR}/map_builder_watcher.h)
 target_link_libraries(map_builder_watcher.exe ${catkin_LIBRARIES})
 
