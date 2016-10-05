@@ -186,7 +186,6 @@ Visualization Manager:
       Marker Topic: /marker
       Name: Marker
       Namespaces:
-        clusters: true
         devices: true
       Queue Size: 100
       Value: true
@@ -307,22 +306,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.9200993
+      Distance: 10.3338451
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.52939069
-        Y: 3.9878509
-        Z: 0.699495137
+        X: 8.57717228
+        Y: 4.24794865
+        Z: 0.701348603
       Name: Current View
       Near Clip Distance: 0.00999999978
       Pitch: 1.56979632
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.7103858
+      Yaw: 4.70538521
     Saved: ~
 Window Geometry:
   Displays:

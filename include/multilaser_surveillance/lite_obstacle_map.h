@@ -33,7 +33,7 @@ public:
     }
     csv_content << "xmin," << _xmin << ",ymin," << _ymin;
     csv_content << ",xmax," << _xmax << ",ymax," << _ymax;
-    csv_content << ",cell2m," << _cell2m << ",inflation_radius," << _inflation_radius;
+    csv_content << ",cells2m," << _cells2m << ",inflation_radius," << _inflation_radius;
     return true;
   }
 
@@ -57,9 +57,9 @@ public:
     _ymin = atof(words[3].c_str());
     _xmax = atof(words[5].c_str());
     _ymax = atof(words[7].c_str());
-    _cell2m = atof(words[9].c_str());
+    _cells2m = atof(words[9].c_str());
     _inflation_radius = atof(words[11].c_str());
-    create(_xmin, _ymin, _xmax, _ymax, _cell2m, _inflation_radius);
+    create(_xmin, _ymin, _xmax, _ymax, _cells2m, _inflation_radius);
     // images
     std::string img_filename = prefix + ".png";
     _map_as_img = cv::imread(img_filename, cv::IMREAD_GRAYSCALE);
@@ -74,17 +74,17 @@ public:
   //////////////////////////////////////////////////////////////////////////////
 
   void create(double xmin, double ymin, double xmax, double ymax,
-              double cell2m = DEFAULT_CELL2M, double inflation_radius = DEFAULT_INFLATION_RADIUS) {
+              double cells2m = DEFAULT_cells2m, double inflation_radius = DEFAULT_INFLATION_RADIUS) {
     _xmin = xmin;
     _xmax = xmax;
     _ymin = ymin;
     _ymax = ymax;
-    _cell2m = cell2m;
-    _m2pix = 1./cell2m;
+    _cells2m = cells2m;
+    _m2cells = 1./cells2m;
     _inflation_radius = inflation_radius;
     // reset map
-    _w = 1 + (_xmax - _xmin) * _m2pix;
-    _h = 1 + (_ymax - _ymin) * _m2pix;
+    _w = 1 + (_xmax - _xmin) * _m2cells;
+    _h = 1 + (_ymax - _ymin) * _m2cells;
     printf("LiteObstacleMap::create(): bounds (%g,%g)->(%g,%g), dims(%i,%i)\n",
                 _xmin, _ymin, _xmax, _ymax, _w, _h);
     _map_as_img.create(_h, _w);
@@ -101,7 +101,7 @@ public:
     for (unsigned int i = 0; i < npts; ++i) {
       const Pt2* curr = &(obstacles[i]);
       if (curr->x > _xmin && curr->x < _xmax && curr->y > _ymin && curr->y < _ymax)
-        _map_as_img( m2pix(*curr) ) = 255;
+        _map_as_img( m2cells(*curr) ) = 255;
     } // end for i
     //cv::imshow("LiteObstacleMap", _map_as_img); cv::waitKey(500);
     inflate();
@@ -113,7 +113,7 @@ public:
   inline bool is_occupied(const double & x, const double & y) const {
     if (x <= _xmin || x >= _xmax || y <= _ymin || y >= _ymax)
       return true; // out of bounds
-    return _inflated_map_as_img.at<uchar>(m2pix(x, y));
+    return _inflated_map_as_img.at<uchar>(m2cells(x, y));
   }
   template<class Pt2f>
   inline bool is_occupied(const Pt2f & pt) {
@@ -142,7 +142,7 @@ public:
   inline double get_ymin() const         { return _ymin; }
   inline double get_xmax() const         { return _xmax; }
   inline double get_ymax() const         { return _ymax; }
-  inline double get_cell2m() const        { return _cell2m; }
+  inline double get_cells2m() const        { return _cells2m; }
 
   //////////////////////////////////////////////////////////////////////////////
 protected:
@@ -154,7 +154,7 @@ protected:
       printf("LiteObstacleMap::inflate(): empty map!\n");
       return false;
     }
-    int radpix = _inflation_radius * _m2pix;
+    int radpix = _inflation_radius * _m2cells;
     if (radpix == 0)
       return true;
     // http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
@@ -169,19 +169,19 @@ protected:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  inline cv::Point m2pix(const double & x, const double & y) const {
-    return cv::Point( (x - _xmin) * _m2pix,
-                      (y - _ymin) * _m2pix);
+  inline cv::Point m2cells(const double & x, const double & y) const {
+    return cv::Point( (x - _xmin) * _m2cells,
+                      (y - _ymin) * _m2cells);
   }
   template<class Pt2f>
-  inline cv::Point m2pix(const Pt2f & p) const {
-    return m2pix(p.x, p.y);
+  inline cv::Point m2cells(const Pt2f & p) const {
+    return m2cells(p.x, p.y);
   }
 
   //////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////
 
-  double _xmin, _ymin, _xmax, _ymax, _cell2m, _m2pix, _inflation_radius;
+  double _xmin, _ymin, _xmax, _ymax, _cells2m, _m2cells, _inflation_radius;
   unsigned int _w, _h;
   cv::Mat1b _map_as_img, _inflated_map_as_img;
 }; // end class LiteObstacleMap

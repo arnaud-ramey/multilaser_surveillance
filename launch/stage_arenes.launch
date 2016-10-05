@@ -44,9 +44,16 @@
   name="mls" required="true" output="screen"
   args="_scan_topics:=/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan;/robot_4/base_scan;/robot_5/base_scan;/robot_6/base_scan;/robot_7/base_scan;/robot_8/base_scan
         _frames:=/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom;/robot_4/odom;/robot_5/odom;/robot_6/odom;/robot_7/odom;/robot_8/odom
-        _map_prefix:=$(find multilaser_surveillance)/data/maps/arenes
-        _mode:=$(arg mode)  _xmin:=-1  _ymin:=-1  _xmax:=19  _ymax:=9  _pix2m:=0.02  _inflation_radius:=.10
+        _mode:=$(arg mode)  _xmin:=-1  _ymin:=-1  _xmax:=19  _ymax:=9  _cell2m:=0.02  _inflation_radius:=.10
         " />
+
+<!-- map saver / loader -->
+<!--
+<node pkg="map_server" type="map_saver" name="map_saver" respawn="true"
+  output="screen" args="-f $(find multilaser_surveillance)/data/maps/arenes" />
+-->
+<node pkg="map_server" type="map_server" name="map_server" required="true"
+  output="screen" args="$(find multilaser_surveillance)/data/maps/arenes.yaml" />
 
 <!-- clusterer -->
 <node pkg="multilaser_surveillance" type="2dclusterer.exe"

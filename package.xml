@@ -12,6 +12,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>bayes_people_tracker</depend>
   <depend>cv_bridge</depend>
+  <depend>map_server</depend>
   <depend>people_msgs</depend>
   <depend>roscpp</depend>
   <depend>tf</depend>
