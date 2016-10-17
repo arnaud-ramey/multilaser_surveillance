@@ -7,61 +7,10 @@
 #include <stdio.h>
 #include <math.h>
 #include "lmmin.h"
+#include <boost/config.hpp>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/connected_components.hpp>
 
-
-//! from https://avdongre.wordpress.com/2011/12/06/disjoint-set-pts-structure-c/
-class DisjointSets {
-public:
-  struct DisjointSet {
-    size_t parent;
-    unsigned rank;
-    DisjointSet(size_t i) : parent(i), rank(0) { }
-  };
-
-  DisjointSets(size_t n){
-    forest.reserve(n);
-    for (size_t i=0; i<n; i++)
-      forest.push_back(DisjointSet(i));
-    was_changed = true;
-  }
-
-  size_t find(size_t i){
-    if (forest[i].parent == i)
-      return i;
-    size_t old_parent = forest[i].parent;
-    forest[i].parent = find(forest[i].parent);
-    was_changed = (old_parent != forest[i].parent);
-    return forest[i].parent;
-  }
-
-  void merge(size_t i, size_t j) {
-    size_t root_i = find(i);
-    size_t root_j = find(j);
-    if (root_i == root_j)
-      return;
-    was_changed = true;
-    if (forest[root_i].rank < forest[root_j].rank)
-      forest[root_i].parent = root_j;
-    else if (forest[root_i].rank > forest[root_j].rank)
-      forest[root_j].parent = root_i;
-    else {
-      forest[root_i].parent = root_j;
-      forest[root_j].rank += 1;
-    }
-  }
-  void reset_was_changed() { was_changed = false; }
-
-  std::vector<DisjointSet> forest;
-  bool was_changed;
-}; // end class DisjointSets
-
-template<class Vec>
-std::string vec2str(const Vec & v) {
-  std::ostringstream out;
-  for (unsigned int i = 0; i < v.size(); ++i)
-    out << v[i] << ", ";
-  return out.str();
-}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -92,56 +41,18 @@ static bool cluster(const std::vector<Pt2> & pts,
                     std::vector<unsigned int> & cluster_indices,
                     unsigned int & nclusters,
                     const double & cluster_tolerance = 0.1f) {
-  nclusters = 0;
-  if (pts.size() == 0) {
-    // printf("cluster(): clustering an empty cloud.\n");
-    cluster_indices.clear();
-    return true; // no error needed
-  }
+  // http://www.boost.org/doc/libs/1_61_0/libs/graph/example/connected_components.cpp
+  boost::adjacency_list <boost::vecS, boost::vecS, boost::undirectedS> G;
   unsigned int npts = pts.size();
   double cluster_tolerance_sq = cluster_tolerance * cluster_tolerance;
-  // compute neighbors matrix - careful, defined if j > i
-  std::vector< std::vector<bool> > neighbors ( npts, std::vector<bool> ( npts, false ) );
   for (unsigned int i = 0; i < npts; ++i) {
-    for (unsigned int j = i+1; j < npts; ++j) {
-      neighbors[i][j] = are_neighbors(pts[i], pts[j], cluster_tolerance_sq);
+    for (unsigned int j = i; j < npts; ++j) {
+      if (are_neighbors(pts[i], pts[j], cluster_tolerance_sq))
+        boost::add_edge(i, j, G);
     } // end for j
   } // end for i
-
-  // print matrix
-  //for (unsigned int i = 0; i < npts; ++i) {
-  //  for (unsigned int j = 0; j < npts; ++j) printf("%c", neighbors[i][j] ? 'X' : '.');
-  //  printf("\n");
-  //} // end for i
-
-  DisjointSets set(npts);
-  //unsigned int niters = 0;
-  while (set.was_changed) {
-    //printf("set iteration:%i\n", niters++);
-    set.reset_was_changed();
-    for (unsigned int i = 0; i < npts; ++i) {
-      for (unsigned int j = i+1; j < npts; ++j) {
-        if (neighbors[i][j]) {
-          //printf("Merging %i and %i\n", j, i);
-          set.merge(j, i);
-        }
-      } // end for j
-    } // end for i
-  } // end while (set.was_changed)
-
-  // convert all the different values of parents into a [0,1,..,nclusters] list
-  std::map<size_t, unsigned int> parent2cluster;
   cluster_indices.resize(npts);
-  for (unsigned int i = 0; i < npts; ++i) {
-    size_t parent = set.forest[i].parent;
-    if (parent2cluster.find(parent) == parent2cluster.end())
-      parent2cluster.insert(std::make_pair(parent, parent2cluster.size()));
-    cluster_indices[i] = parent2cluster[parent];
-  }
-
-  nclusters = parent2cluster.size(); // parent is equal to (ncluster-1)
-  // print cluster_indices
-  //printf("cluster_indices:%s\n", vec2str(cluster_indices).c_str());
+  nclusters = boost::connected_components(G, &cluster_indices[0]);
   return true; // success
 } // end cluster()
 
