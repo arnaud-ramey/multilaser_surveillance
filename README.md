@@ -1,6 +1,8 @@
 multilaser_surveillance
 =======================
 
+[![Build Status](https://travis-ci.org/arnaud-ramey/multilaser_surveillance.svg)](https://travis-ci.org/arnaud-ramey/multilaser_surveillance)
+
 This package provides tools to perform surveillance on a known area.
 The area is watched by a number of fixed 2D laser range finders.
 
@@ -52,11 +54,11 @@ ROS Kinetic + catkin
 Compile with [catkin_make](http://wiki.ros.org/catkin/commands/catkin_make):
 
 ```bash
-$ rosdep install multilaser_surveillance --ignore-src
 $ roscd ; cd src
 $ svn co https://github.com/strands-project/strands_perception_people/trunk/bayes_people_tracker
 $ git clone https://github.com/LCAS/bayestracking.git bayes_tracking
 $ rospack profile
+$ rosdep install multilaser_surveillance --ignore-src
 $ catkin_make --only-pkg-with-deps multilaser_surveillance
 ```
 
