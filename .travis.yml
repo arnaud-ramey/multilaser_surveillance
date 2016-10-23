@@ -32,7 +32,6 @@ before_script: #  Use this to prepare your build for testing e.g. copy database 
   - svn co https://github.com/strands-project/strands_perception_people/trunk/bayes_people_tracker
   - git clone https://github.com/LCAS/bayestracking.git bayes_tracking
   - wstool init
-  - wstool merge $CI_SOURCE_PATH/dependencies.rosinstall
   - wstool update
   # package depdencies: install using rosdep.
   - cd ~/catkin_ws
