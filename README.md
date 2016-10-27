@@ -239,9 +239,9 @@ MultiTracker<FilterType, 4> mtrk; // state [x, v_x, y, v_y]
 ***Solution***:
 change ```sequenceTime``` in MultiTracker instantiation:
 open
-[```people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+[```bayes_people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
 
-and change the line
+and change the line (around line 82)
 
 ```cpp
 SimpleTracking() {
@@ -251,6 +251,13 @@ for:
 
 ```cpp
 SimpleTracking() : mtrk(5, .5) {
+```
+
+One-liner:
+
+```bash
+$ sed  -i 's/SimpleTracking() {/SimpleTracking() : mtrk(5, .5) {/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ catkin_make
 ```
 
 pose_matcher
