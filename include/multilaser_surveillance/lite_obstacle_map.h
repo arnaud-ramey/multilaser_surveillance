@@ -17,14 +17,14 @@
  */
 inline void StringSplit(const std::string & str, const std::string & delim,
                         std::vector<std::string>* results) {
-  // maggieDebug3("StringSplit(str:'%s', delim:'%s')", str.c_str(), delim.c_str());
+  // ROS_DEBUG("StringSplit(str:'%s', delim:'%s')", str.c_str(), delim.c_str());
   results->clear();
   if (str == "")
     return;
   size_t delim_pos, search_pos = 0;
   while (search_pos <= str.size() - 1) {
     delim_pos = str.find(delim, search_pos);
-    //maggieDebug1("delim_pos:%i, search_pos:%i", delim_pos, search_pos);
+    //ROS_INFO("delim_pos:%i, search_pos:%i", delim_pos, search_pos);
     if (delim_pos == std::string::npos) { // no more delim
       results->push_back(str.substr(search_pos));
       return;

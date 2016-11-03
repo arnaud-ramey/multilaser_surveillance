@@ -45,7 +45,7 @@ static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & lase
       min_range = laser_msg.range_min,
       max_range = laser_msg.range_max;
   for (unsigned int idx = 0; idx < npts; ++idx) {
-    //maggieDebug2("idx:%i, curr_range:%g", idx, *curr_range);
+    //ROS_INFO("idx:%i, curr_range:%g", idx, *curr_range);
     if (*curr_range > min_range && *curr_range < max_range) {
       _Pt2 pt;
       pt.x = *curr_range * cos(curr_angle);
@@ -184,7 +184,7 @@ protected:
   void scan_cb(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
                unsigned int device_idx) {
     // DEBUG_PRINT("scan_cb(%i)\n", device_idx);
-    Timer timer;
+    vision_utils::Timer timer;
     Scan _buffer;
     convert_sensor_data_to_xy(*scan_msg, _buffer);
     update_scan(device_idx, _buffer);

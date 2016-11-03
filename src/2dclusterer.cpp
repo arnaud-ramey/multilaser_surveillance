@@ -148,7 +148,7 @@ public:
     // DEBUG_PRINT("cloud_cb(%i)\n", device_idx);
     if (_cluster_centers_pub.getNumSubscribers() == 0)
       return;
-    Timer timer;
+    vision_utils::Timer timer;
     cluster(cloud_msg->points, _cluster_indices, _nclusters, _cluster_tolerance);
     if (_center_computation_method == CENTER_COMPUTATION_METHOD_BARYCENTER)
       barycenters(cloud_msg->points, _cluster_indices, _nclusters, _cluster_centers);
