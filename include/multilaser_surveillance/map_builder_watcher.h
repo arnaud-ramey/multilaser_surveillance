@@ -1,8 +1,8 @@
 #ifndef _WANDERER_H_
 #define _WANDERER_H_
 
-#include <multilaser_surveillance/timer.h>
 #include <multilaser_surveillance/lite_obstacle_map.h>
+#include <vision_utils/timer.h>
 
 template<class Pt2>
 class MapBuilderWatcher {
@@ -47,7 +47,7 @@ public:
     Pt2 _pos; //!< meters, in world coordinates
     double _orien, _cosorien, _sinorien; //!< radians, and cached values of cos and sin
     OutlierPtList _outliers; //!< outliers detected by this device
-    Timer _last_scan_timer;
+    vision_utils::Timer _last_scan_timer;
     Scan _last_scan; //!< cached last scan, in map coordinates
     unsigned int _map_nscans; //!< number of scans aggregated in global map
   }; // end class SurveillanceDevice

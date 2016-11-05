@@ -21,6 +21,7 @@
   ______________________________________________________________________________
 */
 #include <multilaser_surveillance/map_builder_watcher.h>
+#include <vision_utils/timer.h>
 // ROS
 #include <tf/transform_listener.h>
 // ROS msg
@@ -294,7 +295,7 @@ protected:
   ros::NodeHandle _nh_public, _nh_private;
   std::vector<ros::Subscriber> _scan_subs;
   ros::Publisher _marker_pub, _scan_pub, _outliers_pub, _map_pub;
-  Timer _marker_timer, _scan_timer, _outliers_timer, _map_timer;
+  vision_utils::Timer _marker_timer, _scan_timer, _outliers_timer, _map_timer;
   visualization_msgs::Marker _marker_msg;
   sensor_msgs::PointCloud _scan_msg, _outliers_msg;
   nav_msgs::OccupancyGrid _map_msg;

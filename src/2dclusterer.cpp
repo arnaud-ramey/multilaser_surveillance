@@ -21,7 +21,7 @@
   ______________________________________________________________________________
 */
 #include <multilaser_surveillance/2dclusterer.h>
-#include <multilaser_surveillance/timer.h>
+#include <vision_utils/timer.h>
 // ROS
 #include <tf/transform_listener.h>
 // ROS msg
