@@ -34,7 +34,7 @@ Steps / pipeline:
 Licence
 =======
 
-BSD
+LGPLv3
 
 
 Authors
