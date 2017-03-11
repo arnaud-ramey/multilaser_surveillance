@@ -16,6 +16,7 @@
   <depend>people_msgs</depend>
   <depend>roscpp</depend>
   <depend>tf</depend>
+  <depend>vision_utils</depend>
 
   <export>
     <rosdoc config="rosdoc.yaml" /> <!-- http://wiki.ros.org/rosdoc_lite -->
