@@ -1,3 +1,9 @@
 - git:
     local-name: vision_utils
     uri: https://github.com/UC3MSocialRobots/vision_utils.git
+- git:
+    local-name: bayes_tracking
+    uri: https://github.com/LCAS/bayestracking.git bayes_tracking
+- svn:
+    local-name: bayes_people_tracker
+    uri: https://github.com/strands-project/strands_perception_people/trunk/bayes_people_tracker

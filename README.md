@@ -48,16 +48,15 @@ Authors
 Compile and install
 ===================
 
-ROS Kinetic + catkin
--------------------
-
+Dependencies handling is based on the [wstool](http://wiki.ros.org/wstool) tool.
 Compile with [catkin_make](http://wiki.ros.org/catkin/commands/catkin_make):
 
 ```bash
+$ sudo apt-get install python-wstool
 $ roscd ; cd src
-$ svn co https://github.com/strands-project/strands_perception_people/trunk/bayes_people_tracker
-$ git clone https://github.com/LCAS/bayestracking.git bayes_tracking
-$ rospack profile
+$ wstool init
+$ wstool merge `rospack find multilaser_surveillance`/dependencies.rosinstall
+$ wstool update
 $ rosdep install multilaser_surveillance --ignore-src
 $ catkin_make --only-pkg-with-deps multilaser_surveillance
 ```
