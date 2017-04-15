@@ -222,40 +222,39 @@ if my detector frame-rate is below 5 Hz (200 ms).
 ***Explanation***:
 By default, the [BayesTracking multitracker](https://github.com/LCAS/bayestracking/blob/dba55e38d59159d6d7a9ef70dd17909e4bdc3084/include/bayes_tracking/multitracker.h)
 creates tracks if it receives detections at least every 200 ms,
-cf. constructor:
+cf. function:
 
 ```cpp
-MultiTracker(unsigned int sequenceSize = 5, double sequenceTime = 0.2)
+line 160: void process(ObservationModelType& om, association_t alg = NN, unsigned int seqSize = 5, double seqTime = 0.2)
 ```
 
 And the embedded ```MultiTracker``` embedded in  [```people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
-uses the default constructor:
-
-```cpp
-MultiTracker<FilterType, 4> mtrk; // state [x, v_x, y, v_y]
-```
+uses the default values for ```seqSize``` and ```seqTime```.
 
 ***Solution***:
-change ```sequenceTime``` in MultiTracker instantiation:
+In MultiTracker class, add the parameters to the ```process()``` function call.
 open
 [```bayes_people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
 
-and change the line (around line 82)
+and change the lines
 
 ```cpp
-SimpleTracking() {
+line 114: mtrk.process(*(it->second.ctm), it->second.alg);
+line 158: mtrk.process(*(det.ctm), det.alg);
 ```
 
 for:
 
 ```cpp
-SimpleTracking() : mtrk(5, .5) {
+mtrk.process(*(it->second.ctm), it->second.alg, 5, .5);
+mtrk.process(*(det.ctm), det.alg, 5, .5);
 ```
 
 One-liner:
 
 ```bash
-$ sed  -i 's/SimpleTracking() {/SimpleTracking() : mtrk(5, .5) {/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ sed  -i 's/mtrk.process(*(it->second.ctm), it->second.alg)/mtrk.process(*(it->second.ctm), it->second.alg, 5, .5)/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ sed  -i 's/mtrk.process(*(det.ctm), det.alg)/mtrk.process(*(det.ctm), det.alg, 5, .5)/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
 $ catkin_make
 ```
 
