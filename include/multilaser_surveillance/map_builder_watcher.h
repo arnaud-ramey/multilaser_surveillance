@@ -1,5 +1,5 @@
-#ifndef _WANDERER_H_
-#define _WANDERER_H_
+#ifndef _MBW_H_
+#define _MBW_H_
 
 #include <multilaser_surveillance/lite_obstacle_map.h>
 #include <vision_utils/timer.h>
@@ -12,7 +12,8 @@ public:
   typedef std::vector<Pt2> Map;
   enum Mode {
     MODE_BUILD_MAP = 0,
-    MODE_SURVEILLANCE = 1
+    MODE_SURVEILLANCE = 1,
+    MODE_AUTO_BUILD_MAP = 2,
   };
   static const unsigned int MAP_NSCANS_PER_DEVICE = 1000;
 
@@ -56,7 +57,7 @@ public:
   //////////////////////////////////////////////////////////////////////////////
 
   MapBuilderWatcher() {
-    _mode = MODE_BUILD_MAP;
+    _mode = MODE_SURVEILLANCE; // safe value
     _map_total_nscans = 0;
     _need_recompute_scan = true;
     _need_recompute_outliers = true;
@@ -115,8 +116,13 @@ public:
     SurveillanceDevice* d = &(_devices[device_idx]);
     d->set_last_scan(scan);
 
+    //check if we need to change mode
+    if (_mode == MODE_AUTO_BUILD_MAP && _life_timer.getTimeSeconds() >= _auto_mode_timeout) {
+      printf("Mode timeout, changing from MODE_BUILD_MAP -> MODE_SURVEILLANCE\n");
+      _mode = MODE_SURVEILLANCE;
+    }
     // aggregate scan if map not done
-    if (_mode == MODE_BUILD_MAP) {
+    if (_mode == MODE_BUILD_MAP || _mode == MODE_AUTO_BUILD_MAP) {
       // compute real map
       if (!_obstacle_map.add_obstacles(d->_last_scan)) {
         printf("Map creating failed!\n");
@@ -129,9 +135,8 @@ public:
       return true;
     } // end if (_mode == MODE_BUILD_MAP)
 
-    // otherwise find outliers
-    // status == MODE_SURVEILLANCE
-    // check if in map
+    // otherwise status == MODE_SURVEILLANCE
+    // -> find outliers
     // DEBUG_PRINT("Device '%s': checking for outliers\n", d->_name.c_str());
     _need_recompute_outliers = true;
     d->_outliers.clear();
@@ -174,6 +179,8 @@ protected:
 
   LiteObstacleMap _obstacle_map;
   Mode _mode;
+  vision_utils::Timer _life_timer;
+  double _auto_mode_timeout; //!< in seconds
   std::vector<SurveillanceDevice> _devices;
   unsigned int _map_total_nscans;
   bool _need_recompute_scan;
@@ -185,4 +192,4 @@ protected:
   bool _need_recompute_outliers;
 }; // end class MapBuilderWatcher
 
-#endif // _WANDERER_H_
+#endif // _MBW_H_

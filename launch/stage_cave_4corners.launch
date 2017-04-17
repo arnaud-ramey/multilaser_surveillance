@@ -1,4 +1,9 @@
 <launch>
+<!-- pass arg mode:=build         to build a new map -->
+<!-- pass arg mode:=surveillance  if the map is already built -->
+<!-- pass arg mode:=auto          to build a new map then make surveillance -->
+<arg name="mode" default="auto" />
+
 <!-- do not use Linux wall time but a simulated time -->
 <param name="/use_sim_time" value="true"/>
 <arg name="world" value="cave_4corners"/>
@@ -12,6 +17,10 @@
   args="/opt/ros/kinetic/share/stage/worlds/simple.world" />
 -->
 
+<!-- equivalency map <=> base_link -->
+<node pkg="tf" type="static_transform_publisher" name="map2base_tf"
+      args="0 0 0  0 0 0   /map  /base_link   100"/>
+
 <!-- TF between the floor and the kinect -->
 <node pkg="tf" type="static_transform_publisher" name="laser0tf"
       args="-7.6 -7.6 0   0.785 0 0   map  robot_0/odom   100"/>
@@ -22,16 +31,61 @@
 <node pkg="tf" type="static_transform_publisher" name="laser3tf"
       args="-7.6  7.6 0   5.498 0 0   map  robot_3/odom   100"/>
 
+<!-- multilaser_surveillance -->
 <node pkg="multilaser_surveillance" type="map_builder_watcher.exe"
-  name="mbw" required="true" output="screen"
-  args="_scan_topics:=/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan
-        _frames:=/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom" />
+  name="mbw" required="true" output="screen">
+  <param name="scan_topics" value="/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan"/>
+  <param name="frames" value="/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom"/>
+  <param name="mode" value="$(arg mode)"/>
+</node>
 
+<!-- clusterer -->
 <node pkg="multilaser_surveillance" type="2dclusterer.exe"
   name="clusterer" required="true" output="screen">
   <remap from="cloud" to="outliers"/>
   <param name="cluster_tolerance" value="0.7"/>
 </node>
+
+<!-- euclidean matcher -->
+<node pkg="people_recognition_vision" type="euclidean_pplm.exe"
+      name="euclidean_pplm"  output="screen" respawn="true" args="">
+  <param name="autostart" value="true"/>
+</node>
+<!-- multitrack Kalman filter -->
+<node pkg="people_recognition_vision" type="ukf_multimodal.exe"
+  name="ukf_multimodal" required="true" output="screen">
+  <param name="autostart" value="true"/>
+  <param name="human_walking_speed" value="5"/> <!-- m/s-->
+  <param name="ppl_input_topics" value="cluster_ppl"/>
+  <param name="ppl_matcher_services" value="euclidean_pplm/match_ppl"/>
+</node>
+<!-- conversion from tracks to ROS rviz marker -->
+<node pkg="vision_utils_tests" type="ppl2marker.exe"
+      output="screen" name="ukf_ppl2marker"
+      args="_red:=1 _green:=0 _blue:=0 _input_topic:=/ukf_multimodal/ppl" />
+
+<!-- Bayesian filter -->
+<!--
+<rosparam command="load" file="$(find multilaser_surveillance)/config/detectors.yaml"/>
+<node pkg="bayes_people_tracker" type="bayes_people_tracker" name="bayes_people_tracker" output="screen" respawn="true">
+    <param name="target_frame" value="/map"/>
+</node>
+-->
+
+<!-- pose_matcher -->
+<!--
+<node pkg="multilaser_surveillance" type="pose_matcher.exe"
+  name="pose_matcher" required="true" output="screen">
+  <remap from="/pose_matcher/estimated_poses" to="/people_tracker/pose_array"/>
+  <param name="ground_truth_topics" value="/robot_4/odom;/robot_5/odom;/robot_6/odom"/>
+</node>
+-->
+
+<!-- pose_matcher plot -->
+<!--
+<node pkg="rqt_plot" type="rqt_plot" name="dist_plot"
+      args="/pose_matcher/dist"/>
+-->
 
 <!-- rviz
 $ rosrun image_view image_view image:=/robot_4/image -->

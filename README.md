@@ -89,6 +89,10 @@ $ roslaunch multilaser_surveillance stage_arenes.launch
 Parameters
 ----------
 
+  * `~auto_mode_timeout [seconds, double]`, default 10.
+    The time between switching automatically from map building to surveillance mode
+    when in "auto" mode.
+
   * `~frames [string]`, default ```""```.
     Semi-colon-separated list of the frame of each 2D scan defined in ```~scan_topics```.
     Must be non empty and of the same size as ```~scan_topics```.
@@ -97,7 +101,7 @@ Parameters
     The static frame for the map. The scans are converted into this frame.
 
   * `~mode [string]`, default ```"surveillance"```.
-    Accepted values are ```"build"``` and ```"surveillance"```.
+    Accepted values are ```"auto", "build"``` or ```"surveillance"```.
 
   * `~map_prefix [string]`, default ```"mymap"```.
     Where to save or load (according to the mode) the map file.

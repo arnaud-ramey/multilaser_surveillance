@@ -21,6 +21,8 @@
   ______________________________________________________________________________
 */
 #include <multilaser_surveillance/map_builder_watcher.h>
+#include <vision_utils/convert_sensor_data_to_xy.h>
+#include <vision_utils/to_lowercase.h>
 #include <vision_utils/timer.h>
 // ROS
 #include <tf/transform_listener.h>
@@ -31,34 +33,6 @@
 #include <nav_msgs/OccupancyGrid.h>
 
 typedef geometry_msgs::Point32 Pt2;
-
-////////////////////////////////////////////////////////////////////////////////
-
-//! convert from polar to xy coordinates for a laser data
-template<class _Pt2>
-static inline void convert_sensor_data_to_xy(const sensor_msgs::LaserScan & laser_msg,
-                                             std::vector<_Pt2> & out_vector) {
-  out_vector.clear();
-  unsigned int npts = laser_msg.ranges.size();
-  out_vector.reserve(npts);
-  const float* curr_range = &(laser_msg.ranges[0]);
-  float curr_angle = laser_msg.angle_min,
-      min_range = laser_msg.range_min,
-      max_range = laser_msg.range_max;
-  for (unsigned int idx = 0; idx < npts; ++idx) {
-    //ROS_INFO("idx:%i, curr_range:%g", idx, *curr_range);
-    if (*curr_range > min_range && *curr_range < max_range) {
-      _Pt2 pt;
-      pt.x = *curr_range * cos(curr_angle);
-      pt.y = *curr_range * sin(curr_angle);
-      out_vector.push_back(pt);
-    }
-    ++curr_range;
-    curr_angle += laser_msg.angle_increment;
-  } // end loop idx
-} // end convert_sensor_data_to_xy()
-
-////////////////////////////////////////////////////////////////////////////////
 
 static inline void createColorMsg
 (std_msgs::ColorRGBA & color, const float & red, const float & green,
@@ -103,21 +77,33 @@ public:
     // get mode
     std::string mode_str = "surveillance";
     _nh_private.param("mode", mode_str, mode_str);
+    vision_utils::to_lowercase(mode_str);
+    DEBUG_PRINT("mode_str:'%s'\n", mode_str.c_str());
     _mode = MODE_SURVEILLANCE;
-    if (mode_str.find("BUILD") != std::string::npos
-        || mode_str.find("build") != std::string::npos)
+    if (mode_str.find("auto") != std::string::npos)
+      _mode = MODE_AUTO_BUILD_MAP;
+    else if (mode_str.find("build") != std::string::npos)
       _mode = MODE_BUILD_MAP;
+    else if (mode_str.find("surveillance") != std::string::npos)
+      _mode = MODE_SURVEILLANCE;
+    else {
+      ROS_FATAL("Unknown mode '%s'", mode_str.c_str());
+      ros::shutdown();
+    }
+
     // get map params
-    if (_mode == MODE_BUILD_MAP) {
+    if (_mode == MODE_BUILD_MAP || _mode == MODE_AUTO_BUILD_MAP) {
       double xmin, ymin, xmax, ymax, pix2m, inflation_radius;
+      _nh_private.param("auto_mode_timeout", _auto_mode_timeout, 10.); // seconds
       _nh_private.param("xmin", xmin, -10.);
       _nh_private.param("xmax", xmax, 10.);
       _nh_private.param("ymin", ymin, -10.);
       _nh_private.param("ymax", ymax, 10.);
       _nh_private.param("pix2m", pix2m, DEFAULT_PIX2M);
       _nh_private.param("inflation_radius", inflation_radius, DEFAULT_INFLATION_RADIUS);
-      ROS_INFO("MODE_BUILD_MAP, static_frame:'%s', map_prefix:'%s', "
+      ROS_INFO("%s, static_frame:'%s', map_prefix:'%s', "
                "map window:(%g, %g)-(%g, %g), pix2m:%g m/pix, inflation_radius:%g m, scan_topics:%s'",
+               (_mode == MODE_BUILD_MAP ? "MODE_BUILD_MAP" : "MODE_AUTO_BUILD_MAP"),
                _static_frame.c_str(), _map_prefix.c_str(),
                xmin, ymin, xmax, ymax, pix2m, inflation_radius, scan_topics_str.c_str());
       // init map
@@ -187,7 +173,7 @@ protected:
     // DEBUG_PRINT("scan_cb(%i)\n", device_idx);
     vision_utils::Timer timer;
     Scan _buffer;
-    convert_sensor_data_to_xy(*scan_msg, _buffer);
+    vision_utils::convert_sensor_data_to_xy(*scan_msg, _buffer);
     update_scan(device_idx, _buffer);
     publish_outliers();
     publish_scan();
@@ -200,6 +186,7 @@ protected:
 
   void publish_outliers() {
     if (_mode == MODE_BUILD_MAP
+        || _mode == MODE_AUTO_BUILD_MAP
         || _outliers_pub.getNumSubscribers() == 0
         || _outliers_timer.getTimeSeconds() < .01) // 100 Hz
       return;
@@ -270,7 +257,9 @@ protected:
     // recreate map if needed
     unsigned int w = _obstacle_map.get_width(), h = _obstacle_map.get_height();
     if (_mode == MODE_BUILD_MAP
-        || _map_msg.info.height != h || _map_msg.info.width != w) {
+        || _mode == MODE_AUTO_BUILD_MAP
+        || _map_msg.info.height != h
+        || _map_msg.info.width != w) {
       _map_msg.info.map_load_time = ros::Time::now();
       _map_msg.info.origin.position.x = _obstacle_map.get_xmin();
       _map_msg.info.origin.position.y = _obstacle_map.get_ymin();
@@ -283,7 +272,8 @@ protected:
     _map_msg.header.stamp = ros::Time::now();
     _map_pub.publish( _map_msg );
     // save map
-    if (_mode == MODE_BUILD_MAP && !_obstacle_map.save(_map_prefix)) {
+    if ((_mode == MODE_BUILD_MAP || _mode == MODE_AUTO_BUILD_MAP)
+        && !_obstacle_map.save(_map_prefix)) {
       ROS_WARN("Could not save map into '%s'", _map_prefix.c_str());
     }
   }

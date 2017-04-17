@@ -3,8 +3,8 @@ bayes_people_tracker:
   filter_type: "UKF"
   # The noise for the constant velocity prediction model
   cv_noise_params:
-      x: 0.5
-      y: 0.5
+      x: 5.0
+      y: 5.0
   # Add detectors under this namespace
   detectors:
     # Name of detector (used internally to identify them). Has to be unique.

@@ -22,17 +22,19 @@
 */
 #include <multilaser_surveillance/2dclusterer.h>
 #include <vision_utils/timer.h>
+#include <vision_utils/copy2.h>
 // ROS
 #include <tf/transform_listener.h>
 // ROS msg
-#include <sensor_msgs/PointCloud.h>
 #include <geometry_msgs/PoseArray.h>
+#include <people_msgs/People.h>
+#include <sensor_msgs/PointCloud.h>
 #include <visualization_msgs/Marker.h>
 
 typedef geometry_msgs::Point32 Pt2;
 
 template<class Pt2a, class Pt2b>
-void copy_vec(const std::vector<Pt2a> & src, std::vector<Pt2b> & dst) {
+void copy_vec2(const std::vector<Pt2a> & src, std::vector<Pt2b> & dst) {
   unsigned int npts = src.size();
   dst.resize(npts);
   for (unsigned int i = 0; i < npts; ++i) {
@@ -113,6 +115,8 @@ public:
     CENTER_COMPUTATION_METHOD_FIT_CIRCLE = 1
   };
 
+  //////////////////////////////////////////////////////////////////////////////
+
   ROSClusterer() : _nh_private("~") {
     _nh_private.param("cluster_tolerance", _cluster_tolerance, .1);
     int max_clusters_int; // param() doesn't take "unsigned ints" as inputs
@@ -128,6 +132,7 @@ public:
     _cloud_sub = _nh_public.subscribe<sensor_msgs::PointCloud>
         ("cloud", 0, &ROSClusterer::cloud_cb, this);
     _cluster_centers_pub = _nh_public.advertise<geometry_msgs::PoseArray>( "cluster_centers", 0 );
+    _ppl_pub = _nh_public.advertise<people_msgs::People>( "cluster_ppl", 0 );
     _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
     _radiuscos.resize(NPTS_PER_CIRCLE_MARKER);
     _radiussin.resize(NPTS_PER_CIRCLE_MARKER);
@@ -143,6 +148,8 @@ public:
              _cluster_tolerance, _max_clusters,
              _center_computation_method, _objects_radius);
   }
+
+  //////////////////////////////////////////////////////////////////////////////
 
   void cloud_cb(const sensor_msgs::PointCloud::ConstPtr& cloud_msg) {
     // DEBUG_PRINT("cloud_cb(%i)\n", device_idx);
@@ -161,32 +168,46 @@ public:
 
     if (_nclusters > _max_clusters) {
       ROS_WARN_THROTTLE(1, "Got %i clusters, while threshold is %i. "
-                           "Not publishing found clusters", _nclusters, _max_clusters);
+                        "Not publishing found clusters", _nclusters, _max_clusters);
       return;
     }
     //printf("nclusters:%i\n", _nclusters);
+    // publish _ppl
+    if (_ppl_pub.getNumSubscribers()) {
+      _ppl.header = cloud_msg->header;
+      _ppl.people.resize(_nclusters);
+      for (unsigned int ci = 0; ci < _nclusters; ++ci) {
+        vision_utils::copy2(_cluster_centers[ci], _ppl.people[ci].position);
+        _ppl.people[ci].reliability = 1;
+        _ppl.people[ci].tagnames.resize(1, "method");
+        _ppl.people[ci].tags.resize(1, "2dclusterer");
+      }
+      _ppl_pub.publish(_ppl);
+    } // end if (_cluster_centers_pub.getNumSubscribers())
+
     // publish _cluster_centers_msg
-    _cluster_centers_msg.header = cloud_msg->header;
-    _cluster_centers_msg.poses.resize(_nclusters);
-    for (unsigned int ci = 0; ci < _nclusters; ++ci) {
-      _cluster_centers_msg.poses[ci].position.x = _cluster_centers[ci].x;
-      _cluster_centers_msg.poses[ci].position.y = _cluster_centers[ci].y;
-      _cluster_centers_msg.poses[ci].position.z = 0;
-      _cluster_centers_msg.poses[ci].orientation.z = 1;
-    } // end for ci
-    _cluster_centers_pub.publish(_cluster_centers_msg);
+    if (_cluster_centers_pub.getNumSubscribers()) {
+      _cluster_centers_msg.header = cloud_msg->header;
+      _cluster_centers_msg.poses.resize(_nclusters);
+      for (unsigned int ci = 0; ci < _nclusters; ++ci) {
+        vision_utils::copy2(_cluster_centers[ci],
+                            _cluster_centers_msg.poses[ci].position);
+        _cluster_centers_msg.poses[ci].orientation.z = 1;
+      } // end for ci
+      _cluster_centers_pub.publish(_cluster_centers_msg);
+    } // end if (_cluster_centers_pub.getNumSubscribers())
 
     // publish markers
     if (_marker_pub.getNumSubscribers()) {
       _marker_msg.header = cloud_msg->header;
       _marker_msg.ns = "clusters";
-      _marker_msg.action = visualization_msgs::Marker::ADD;
+      _marker_msg.action = visualization_msgs::Marker::MODIFY;
       // publish cluster clouds
       _marker_msg.points.clear();
       _marker_msg.type = visualization_msgs::Marker::POINTS;
       _marker_msg.id = 0; // unique identifier
       _marker_msg.scale.x = _marker_msg.scale.y = _marker_msg.scale.z = 0.05; // 5 cm
-      copy_vec(cloud_msg->points, _marker_msg.points);
+      copy_vec2(cloud_msg->points, _marker_msg.points);
       unsigned int npts = cloud_msg->points.size();
       _marker_msg.colors.resize(npts);
       for (unsigned int i = 0; i < npts; ++i) {
@@ -227,19 +248,25 @@ public:
                       _cluster_tolerance, timer.getTimeMilliseconds());
   } // end cloud_cb()
 
+  //////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
   ros::NodeHandle _nh_public, _nh_private;
   ros::Subscriber _cloud_sub;
-  ros::Publisher _marker_pub, _cluster_centers_pub;
+  ros::Publisher _marker_pub, _cluster_centers_pub, _ppl_pub;
   double _cluster_tolerance, _objects_radius;
   std::vector<unsigned int> _cluster_indices;
   unsigned int _nclusters, _max_clusters;
   CenterComputation _center_computation_method;
   std::vector<Pt2> _cluster_centers;
   geometry_msgs::PoseArray _cluster_centers_msg;
+  people_msgs::People _ppl;
   visualization_msgs::Marker _marker_msg;
   std::vector<double> _radiuscos, _radiussin;
 }; // end class ROSClusterer
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "2dclusterer");

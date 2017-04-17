@@ -189,6 +189,8 @@ protected:
       return false;
     }
     int radpix = _inflation_radius * _m2pix;
+//    printf("_inflation_radius:%g m, _m2pix:%g, radpix:%i pix\n",
+//           _inflation_radius, _m2pix, radpix);
     if (radpix == 0)
       return true;
     // http://docs.opencv.org/2.4/doc/tutorials/imgproc/erosion_dilatation/erosion_dilatation.html
@@ -197,6 +199,7 @@ protected:
                                                  cv::Size( 2*radpix + 1, 2*radpix+1 ),
                                                  cv::Point( radpix, radpix ) );
     cv::dilate(_map_as_img, _inflated_map_as_img, element);
+    //_map_as_img.copyTo(_inflated_map_as_img);
     //cv::imshow("LiteObstacleMap-inflated", _map_as_img); cv::waitKey(500);
     return true;
   }
