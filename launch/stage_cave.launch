@@ -6,7 +6,7 @@
 
 <!-- do not use Linux wall time but a simulated time -->
 <param name="/use_sim_time" value="true"/>
-<arg name="world" value="cave_4corners"/>
+<arg name="world" value="cave"/>
 
 <!-- find /opt/ros/*/share/stage* -name "*.world" -->
 <node pkg="stage_ros" type="stageros" name="stage" output="screen" required="true"
@@ -16,6 +16,9 @@
   args="/opt/ros/kinetic/share/stage_ros/world/willow-erratic.world" />
   args="/opt/ros/kinetic/share/stage/worlds/simple.world" />
 -->
+
+<node pkg="map_server" name="map_server" type="map_server"
+      args="$(find multilaser_surveillance)/data/$(arg world).yml" />
 
 <!-- equivalency map <=> base_link -->
 <node pkg="tf" type="static_transform_publisher" name="map2base_tf"
@@ -34,9 +37,10 @@
 <!-- multilaser_surveillance -->
 <node pkg="multilaser_surveillance" type="map_builder_watcher.exe"
   name="mbw" required="true" output="screen">
+  <param name="mode" value="$(arg mode)"/>
   <param name="scan_topics" value="/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan"/>
   <param name="frames" value="/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom"/>
-  <param name="mode" value="$(arg mode)"/>
+  <param name="apriori_map_service" value="/static_map"/> <!-- supplied by map_server -->
 </node>
 
 <!-- clusterer -->

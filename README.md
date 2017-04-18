@@ -9,7 +9,7 @@ The area is watched by a number of fixed 2D laser range finders.
 Multimodal tracking is based on the
 [perception stack of the STRANDS project](https://github.com/strands-project/strands_perception_people).
 This stack makes use of
-[```BayesTracking```](https://github.com/LCAS/bayestracking),
+[`BayesTracking`](https://github.com/LCAS/bayestracking),
 a library of Bayesian tracking.
 For more info, read
 *[Real-time multisensor people tracking for human-robot spatial interaction](http://eprints.lincoln.ac.uk/17545/)*
@@ -17,16 +17,16 @@ by Dondrup and Bellotto.
 
 Steps / pipeline:
 
-1) ```MapBuilderWatcher``` - map building mode
+1) `MapBuilderWatcher` - map building mode
   - Build the map based on the stream of laser scans.
 
-2) ```MapBuilderWatcher``` - surveillance mode
+2) `MapBuilderWatcher` - surveillance mode
   - Compare the streams of laser scans to the map and detect outliers w.r.t. the map
 
-3) ```2dclusterer```
+3) `2dclusterer`
   - cluster outliers into continuous blobs, and publish their barycenter.
 
-4) ```bayes_people_tracker```
+4) `bayes_people_tracker`
   - convert the discontinuous blobs barycenters into tracks,
   using Unscented Kalman Filter.
 
@@ -41,8 +41,8 @@ Authors
 =======
 
   - Package maintainer: Arnaud Ramey (arnaud.a.ramey@gmail.com)
-  - ```strands_perception_people```: [STRANDS project](http://strands.acin.tuwien.ac.at/)
-  - ```BayesTracking``` library: Nicola Bellotto (nbellotto@lincoln.ac.uk)
+  - `strands_perception_people`: [STRANDS project](http://strands.acin.tuwien.ac.at/)
+  - `BayesTracking` library: Nicola Bellotto (nbellotto@lincoln.ac.uk)
 
 
 Compile and install
@@ -66,7 +66,7 @@ Run
 ===
 
   1) Build the map.
-  The created map is shown in ```rviz``` :
+  The created map is shown in `rviz` :
   it corresponds to the purple cells, obtained by accumulating the laser scans
   and inflating of a constant radius around them.
   The map is automatically saved in `multilaser_surveillance/data/maps`.
@@ -83,37 +83,44 @@ $ roslaunch multilaser_surveillance stage_arenes.launch
 ```
 
 
-1) & 2) ```MapBuilderWatcher``` - map building & surveillance modes
+1) & 2) `MapBuilderWatcher` - map building & surveillance modes
 ===================================================================
 
 Parameters
 ----------
 
+  * `~apriori_map_service [string]`, default `""`.
+    ONLY IN BUILD MODE
+    The name of the service where an apriori map of the world can be found.
+    It can be supplied using a [map_server](http://wiki.ros.org/map_server).
+    If empty, won't be used, but in that case
+    you need to supply `~xmin, ~ymin, ~xmax, ~ymax`, cf. below.
+
   * `~auto_mode_timeout [seconds, double]`, default 10.
     The time between switching automatically from map building to surveillance mode
     when in "auto" mode.
 
-  * `~frames [string]`, default ```""```.
-    Semi-colon-separated list of the frame of each 2D scan defined in ```~scan_topics```.
-    Must be non empty and of the same size as ```~scan_topics```.
+  * `~frames [string]`, default `""`.
+    Semi-colon-separated list of the frame of each 2D scan defined in `~scan_topics`.
+    Must be non empty and of the same size as `~scan_topics`.
 
-  * `~static_frame [string]`, default ```"/map"```.
+  * `~static_frame [string]`, default `"/map"`.
     The static frame for the map. The scans are converted into this frame.
 
-  * `~mode [string]`, default ```"surveillance"```.
-    Accepted values are ```"auto", "build"``` or ```"surveillance"```.
+  * `~mode [string]`, default `"surveillance"`.
+    Accepted values are `"auto", "build"` or `"surveillance"`.
 
-  * `~map_prefix [string]`, default ```"mymap"```.
+  * `~map_prefix [string]`, default `"mymap"`.
     Where to save or load (according to the mode) the map file.
-    Corresponds to a ```.csv``` and a ```.png``` file
+    Corresponds to a `.csv` and a `.png` file
     (these extensions are aggregated to the parameter value).
 
-  * `~scan_topics [string]`, default ```""```.
+  * `~scan_topics [string]`, default `""`.
     Semi-colon-separated list of topics of 2D scans.
-    Must be non empty and of the same size as ```~scan_topics```.
+    Must be non empty and of the same size as `~scan_topics`.
 
   * `~xmin, ~ymin, ~xmax, ~ymax [double, meters]`, default -10,-10,10,10 meters.
-    ONLY IN BUILD MODE.
+    ONLY IN BUILD MODE, if `apriori_map_service` is empty or fails.
     Minimum and maximum values for the map boundaries.
     Scan values out of this range (in map coordinates) will be discarded.
 
@@ -124,7 +131,7 @@ Subscriptions
     The different scan streams published by the laser range finders.
 
   * `/tf [tf2_msgs/TFMessage]`
-    The transforms between the frame of each scan and the ```static_frame```.
+    The transforms between the frame of each scan and the `static_frame`.
 
 Publications
 ------------
@@ -148,7 +155,7 @@ Publications
     Rate: upon reception of each scan, max 100 Hz.
 
 
-3) ```2dclusterer```
+3) `2dclusterer`
 ====================
 
 Parameters
@@ -176,7 +183,7 @@ Subscriptions
 -------------
 
   * `/cloud [sensor_msgs/PointCloud]`
-    The 2D point cloud to cluster, in ```(x, y)```.
+    The 2D point cloud to cluster, in `(x, y)`.
 
 Publications
 ------------
@@ -191,7 +198,7 @@ Publications
     Rate: upon reception of each PointCloud.
 
 
-4) ```bayes_people_tracker```
+4) `bayes_people_tracker`
 =============================
 
 Parameters
@@ -232,13 +239,13 @@ cf. function:
 line 160: void process(ObservationModelType& om, association_t alg = NN, unsigned int seqSize = 5, double seqTime = 0.2)
 ```
 
-And the embedded ```MultiTracker``` embedded in  [```people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
-uses the default values for ```seqSize``` and ```seqTime```.
+And the embedded `MultiTracker``` embedded in  [```people_tracker/simple_tracking.h`](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+uses the default values for `seqSize` and `seqTime`.
 
 ***Solution***:
-In MultiTracker class, add the parameters to the ```process()``` function call.
+In MultiTracker class, add the parameters to the `process()` function call.
 open
-[```bayes_people_tracker/simple_tracking.h```](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
+[`bayes_people_tracker/simple_tracking.h`](https://github.com/strands-project/strands_perception_people/blob/ac2318f80ca8aeaa28c19a0393bdb0b39edd4a18/bayes_people_tracker/include/bayes_people_tracker/simple_tracking.h)
 
 and change the lines
 
@@ -269,7 +276,7 @@ pose_matcher
 Parameters
 ----------
 
-  * `~ground_truth_topics [string]`, default ```""```.
+  * `~ground_truth_topics [string]`, default `""`.
     Semi-colon-separated list of topics of nav_msgs::Odometry.
     Must be non empty.
 
@@ -287,5 +294,5 @@ Publications
 ------------
 
   * `~dist [std_msgs/Float32]`
-    The average distance between the poses of ```estimated_poses```
+    The average distance between the poses of `estimated_poses`
     and the different odometry streams.

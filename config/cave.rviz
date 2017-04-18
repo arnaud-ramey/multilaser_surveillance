@@ -185,9 +185,7 @@ Visualization Manager:
       Marker Topic: /marker
       Name: Marker
       Namespaces:
-        clusters: true
         devices: true
-        fitted_circles: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -259,6 +257,15 @@ Visualization Manager:
       Topic: /map
       Unreliable: false
       Value: true
+    - Alpha: 0.699999988
+      Class: rviz/Map
+      Color Scheme: costmap
+      Draw Behind: false
+      Enabled: true
+      Name: MapSurveillance
+      Topic: /map_surveillance
+      Unreliable: false
+      Value: true
     - Alpha: 1
       Arrow Length: 1
       Axes Length: 0.300000012
@@ -288,7 +295,7 @@ Visualization Manager:
       Marker Topic: /ppl_marker
       Name: Marker
       Namespaces:
-        /ukf_multimodal/ppl: true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true

@@ -31,6 +31,7 @@
 #include <sensor_msgs/PointCloud.h>
 #include <visualization_msgs/Marker.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <map_server/image_loader.h>
 
 typedef geometry_msgs::Point32 Pt2;
 
@@ -95,19 +96,25 @@ public:
     if (_mode == MODE_BUILD_MAP || _mode == MODE_AUTO_BUILD_MAP) {
       double xmin, ymin, xmax, ymax, pix2m, inflation_radius;
       _nh_private.param("auto_mode_timeout", _auto_mode_timeout, 10.); // seconds
-      _nh_private.param("xmin", xmin, -10.);
-      _nh_private.param("xmax", xmax, 10.);
-      _nh_private.param("ymin", ymin, -10.);
-      _nh_private.param("ymax", ymax, 10.);
-      _nh_private.param("pix2m", pix2m, DEFAULT_PIX2M);
       _nh_private.param("inflation_radius", inflation_radius, DEFAULT_INFLATION_RADIUS);
+      // load a priori map if needed
+      std::string apriori_map_service = "";
+      _nh_private.param("apriori_map_service", apriori_map_service, apriori_map_service);
+      if (!load_apriori_map(apriori_map_service, inflation_radius)) {
+        _nh_private.param("xmin", xmin, -10.);
+        _nh_private.param("xmax", xmax, 10.);
+        _nh_private.param("ymin", ymin, -10.);
+        _nh_private.param("ymax", ymax, 10.);
+        _nh_private.param("pix2m", pix2m, DEFAULT_PIX2M);
+        // init map
+        _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
+      }
+
       ROS_INFO("%s, static_frame:'%s', map_prefix:'%s', "
                "map window:(%g, %g)-(%g, %g), pix2m:%g m/pix, inflation_radius:%g m, scan_topics:%s'",
                (_mode == MODE_BUILD_MAP ? "MODE_BUILD_MAP" : "MODE_AUTO_BUILD_MAP"),
                _static_frame.c_str(), _map_prefix.c_str(),
                xmin, ymin, xmax, ymax, pix2m, inflation_radius, scan_topics_str.c_str());
-      // init map
-      _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
     }
     else {
       ROS_INFO("MODE_SURVEILLANCE, static_frame:'%s', map_prefix:'%s', scan_topics:%s'",
@@ -147,7 +154,7 @@ public:
     }
 
     // create publishers
-    _map_pub = _nh_public.advertise<nav_msgs::OccupancyGrid>( "map", 0 );
+    _map_pub = _nh_public.advertise<nav_msgs::OccupancyGrid>( "map_surveillance", 0 );
     _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
     _outliers_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
     _scan_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "scan", 0 );
@@ -165,6 +172,58 @@ protected:
     out.y = pt.y;
     return out;
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  bool load_apriori_map(const std::string & apriori_map_service,
+                        const double & inflation_radius) {
+    if (apriori_map_service.empty())  // nothing to do
+      return false; // nothing loaded
+    ros::ServiceClient map_client = _nh_public.serviceClient<nav_msgs::GetMap>
+        (apriori_map_service);
+    unsigned int i = 0; // spin a few times to wait for the map server
+    while (i++ < 10 && !map_client.exists())
+      ros::spinOnce();
+    if (!map_client.exists()) {
+      ROS_WARN("load_apriori_map(): no server on '%s', did you launch the map server?",
+               apriori_map_service.c_str());
+      return false;
+    }
+    nav_msgs::GetMap req;
+    if (!map_client.call(req)) {
+      ROS_WARN("load_apriori_map(): service call '%s' failed!",
+               apriori_map_service.c_str());
+      return false;
+    }
+    ROS_INFO("load_apriori_map(): service call '%s' was successful.",
+             apriori_map_service.c_str());
+    // now set the map
+    nav_msgs::MapMetaData info = req.response.map.info;
+    unsigned int w = info.width, h = info.height;
+    _obstacle_map.create(info.origin.position.x,
+                         info.origin.position.y,
+                         info.origin.position.x + w  * info.resolution,
+                         info.origin.position.y + h * info.resolution,
+                         info.resolution,
+                         inflation_radius);
+    std::vector<Pt2> obstacles;
+    obstacles.reserve(w * h);
+    for (unsigned int row = 0; row < h; ++row) {
+      for (unsigned int col = 0; col < w; ++col) {
+        if (!req.response.map.data[col + row * w])
+          continue;
+        Pt2 pt;
+        pt.x = info.origin.position.x + col * info.resolution;
+        pt.y = info.origin.position.y + row * info.resolution;
+        obstacles.push_back(pt);
+      } // end for i
+    } // end for j
+    if (!_obstacle_map.add_obstacles(obstacles)) {
+      printf("load_apriori_map(): adding obstacles failed!\n");
+      return false;
+    }
+    return true; // success
+  } // end load_apriori_map()
 
   //////////////////////////////////////////////////////////////////////////////
 
