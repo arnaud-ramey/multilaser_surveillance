@@ -264,8 +264,8 @@ mtrk.process(*(det.ctm), det.alg, 5, .5);
 One-liner:
 
 ```bash
-$ sed  -i 's/mtrk.process(*(it->second.ctm), it->second.alg)/mtrk.process(*(it->second.ctm), it->second.alg, 5, .5)/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
-$ sed  -i 's/mtrk.process(*(det.ctm), det.alg)/mtrk.process(*(det.ctm), det.alg, 5, .5)/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ sed  -i 's/it->second.alg/it->second.alg, 5, .5/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ sed  -i 's/det.alg/det.alg, 5, .5/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
 $ catkin_make
 ```
 
