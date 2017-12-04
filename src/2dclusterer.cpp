@@ -119,21 +119,24 @@ public:
 
   ROSClusterer() : _nh_private("~") {
     _nh_private.param("cluster_tolerance", _cluster_tolerance, .1);
+    int min_pts_per_clusters_int; // param() doesn't take "unsigned ints" as inputs
+    _nh_private.param("min_pts_per_clusters", min_pts_per_clusters_int, 1);
+    _min_pts_per_clusters = min_pts_per_clusters_int;
     int max_clusters_int; // param() doesn't take "unsigned ints" as inputs
+    _max_clusters = max_clusters_int;
     _nh_private.param("max_clusters", max_clusters_int, 20);
+    _nh_private.param("objects_radius", _objects_radius, .5);
     std::string center_computation_method_str = "fit";
     _nh_private.param("center_computation_method", center_computation_method_str, center_computation_method_str);
-    _nh_private.param("objects_radius", _objects_radius, .5);
     _center_computation_method = CENTER_COMPUTATION_METHOD_FIT_CIRCLE;
     if (center_computation_method_str.find("barycenter") != std::string::npos)
       _center_computation_method = CENTER_COMPUTATION_METHOD_BARYCENTER;
 
-    _max_clusters = max_clusters_int;
     _cloud_sub = _nh_public.subscribe<sensor_msgs::PointCloud>
         ("cloud", 0, &ROSClusterer::cloud_cb, this);
-    _cluster_centers_pub = _nh_public.advertise<geometry_msgs::PoseArray>( "cluster_centers", 0 );
-    _ppl_pub = _nh_public.advertise<people_msgs::People>( "cluster_ppl", 0 );
-    _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
+    _cluster_centers_pub = _nh_private.advertise<geometry_msgs::PoseArray>( "cluster_centers", 0 );
+    _ppl_pub = _nh_private.advertise<people_msgs::People>( "cluster_ppl", 0 );
+    _marker_pub = _nh_private.advertise<visualization_msgs::Marker>( "marker", 0 );
     _radiuscos.resize(NPTS_PER_CIRCLE_MARKER);
     _radiussin.resize(NPTS_PER_CIRCLE_MARKER);
     for (unsigned int j = 0; j < NPTS_PER_CIRCLE_MARKER; ++j) {
@@ -143,9 +146,9 @@ public:
     } // end for j
     _marker_msg.lifetime = ros::Duration(1);
 
-    ROS_INFO("ROSClusterer: cluster_tolerance:%g m, max: %i clusters, "
-             "center_computation_method:%i, objects_radius:%g m",
-             _cluster_tolerance, _max_clusters,
+    ROS_INFO("ROSClusterer: cluster_tolerance:%g m, min %i pts per cluster,"
+             "max: %i clusters, center_computation_method:%i, objects_radius:%g m",
+             _cluster_tolerance, _min_pts_per_clusters, _max_clusters,
              _center_computation_method, _objects_radius);
   }
 
@@ -156,12 +159,15 @@ public:
     if (_cluster_centers_pub.getNumSubscribers() == 0)
       return;
     vision_utils::Timer timer;
-    cluster(cloud_msg->points, _cluster_indices, _nclusters, _cluster_tolerance);
+    cluster(cloud_msg->points, _cluster_indices,
+            _nclusters, _cluster_tolerance);
     if (_center_computation_method == CENTER_COMPUTATION_METHOD_BARYCENTER)
-      barycenters(cloud_msg->points, _cluster_indices, _nclusters, _cluster_centers);
+      barycenters(cloud_msg->points, _cluster_indices, _nclusters, _min_pts_per_clusters,
+                  _cluster_centers);
     else if (_center_computation_method == CENTER_COMPUTATION_METHOD_FIT_CIRCLE
              && !best_fit_circles(cloud_msg->points, _cluster_indices,
-                                  _nclusters, _objects_radius, _cluster_centers)) {
+                                  _nclusters, _min_pts_per_clusters,
+                                  _objects_radius, _cluster_centers)) {
       printf( "best_fit_circles() returned an error.\n");
       return;
     }
@@ -256,7 +262,7 @@ public:
   ros::Publisher _marker_pub, _cluster_centers_pub, _ppl_pub;
   double _cluster_tolerance, _objects_radius;
   std::vector<unsigned int> _cluster_indices;
-  unsigned int _nclusters, _max_clusters;
+  unsigned int _nclusters, _max_clusters, _min_pts_per_clusters;
   CenterComputation _center_computation_method;
   std::vector<Pt2> _cluster_centers;
   geometry_msgs::PoseArray _cluster_centers_msg;

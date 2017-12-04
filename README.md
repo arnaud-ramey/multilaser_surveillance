@@ -170,6 +170,10 @@ Parameters
     either by computing its barycenter,
     or by trying to best fit a circle of radius `~objects_radius`.
 
+  * `~min_pts_per_cluster [unsigned int]`, default 1.
+    The minimum of points in a cluster to keep it.
+    Useful to avoid creating clusters with very few points.
+
   * `~max_clusters [unsigned int]`, default 20.
     The maximum number of clusters.
     Useful to avoid saturating the Bayesian tracker.

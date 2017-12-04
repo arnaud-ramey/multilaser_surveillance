@@ -154,10 +154,10 @@ public:
     }
 
     // create publishers
-    _map_pub = _nh_public.advertise<nav_msgs::OccupancyGrid>( "map_surveillance", 0 );
-    _marker_pub = _nh_public.advertise<visualization_msgs::Marker>( "marker", 0 );
-    _outliers_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
-    _scan_pub = _nh_public.advertise<sensor_msgs::PointCloud>( "scan", 0 );
+    _map_pub = _nh_private.advertise<nav_msgs::OccupancyGrid>( "map_surveillance", 0 );
+    _marker_pub = _nh_private.advertise<visualization_msgs::Marker>( "marker", 0 );
+    _outliers_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "outliers", 0 );
+    _scan_pub = _nh_private.advertise<sensor_msgs::PointCloud>( "scan", 0 );
     _marker_msg.header.frame_id = _static_frame;
     _marker_msg.id = 0;
     _map_msg.header = _marker_msg.header;

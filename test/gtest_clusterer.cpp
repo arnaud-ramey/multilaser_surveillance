@@ -11,7 +11,7 @@ public:
   double x, y;
 };
 
-void ASSERT_PTS_EQ(const Pt2 & A, const Pt2 & B, double max_dist = 1E-2) {
+void ASSERT_PTS_NEAR(const Pt2 & A, const Pt2 & B, double max_dist = 1E-2) {
   ASSERT_NEAR(A.x, B.x, max_dist) << "(" << A.x << "," << A.y
                                   << ") differ from (" << B.x << "," << B.y << ")";
   ASSERT_NEAR(A.y, B.y, max_dist) << "(" << A.x << "," << A.y
@@ -27,7 +27,7 @@ TEST(TestSuite, empty) {
   cluster(pts, cluster_indices, nclusters);
   ASSERT_EQ(nclusters, 0);
   ASSERT_EQ(cluster_indices.size(), pts.size());
-  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
   ASSERT_EQ(cluster_centers.size(), nclusters);
 }
 
@@ -43,9 +43,9 @@ void test_singleton(unsigned int npts) {
   ASSERT_EQ(nclusters, 1);
   ASSERT_EQ(cluster_indices.size(), pts.size());
   ASSERT_EQ(cluster_indices.front(), 0);
-  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
   ASSERT_EQ(cluster_centers.size(), nclusters);
-  ASSERT_PTS_EQ(cluster_centers.front(), pts.front());
+  ASSERT_PTS_NEAR(cluster_centers.front(), pts.front());
 }
 
 TEST(TestSuite, singleton1)  { test_singleton(1); }
@@ -66,9 +66,33 @@ TEST(TestSuite, average) {
   ASSERT_EQ(cluster_indices.size(), pts.size());
   ASSERT_EQ(cluster_indices.front(), 0);
   ASSERT_EQ(cluster_indices.back(), 0);
-  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
   ASSERT_EQ(cluster_centers.size(), nclusters);
-  ASSERT_PTS_EQ(cluster_centers.front(), Pt2(2.05, 3));
+  ASSERT_PTS_NEAR(cluster_centers.front(), Pt2(2.05, 3));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST(TestSuite, min_pts_per_clusters) {
+  std::vector<Pt2> pts, cluster_centers;
+  unsigned int min_pts_per_clusters = 5;
+  for (unsigned int i = 1; i < 10; ++i) {
+    pts.push_back(Pt2(2+drand48()/10, 3));
+    std::vector<unsigned int> cluster_indices;
+    unsigned int nclusters = 0;
+    cluster(pts, cluster_indices, nclusters);
+    ASSERT_EQ(nclusters, 1);
+    ASSERT_EQ(cluster_indices.size(), pts.size());
+    ASSERT_EQ(cluster_indices.front(), 0);
+    ASSERT_EQ(cluster_indices.back(), 0);
+    barycenters(pts, cluster_indices, nclusters, min_pts_per_clusters, cluster_centers);
+    if (i < min_pts_per_clusters)
+      ASSERT_EQ(cluster_centers.size(), 0);
+    else {
+      ASSERT_EQ(cluster_centers.size(), 1);
+      ASSERT_PTS_NEAR(cluster_centers.front(), Pt2(2.5, 3), .5);
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -84,10 +108,10 @@ void test_remote(unsigned int npts) {
   ASSERT_EQ(cluster_indices.size(), pts.size());
   for (unsigned int i = 0; i < npts; ++i)
     ASSERT_EQ(cluster_indices[i], i);
-  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
   ASSERT_EQ(cluster_centers.size(), nclusters);
   for (unsigned int i = 0; i < npts; ++i)
-    ASSERT_PTS_EQ(cluster_centers[i], pts[i]);
+    ASSERT_PTS_NEAR(cluster_centers[i], pts[i]);
 }
 
 TEST(TestSuite, remote1) { test_remote(1);}
@@ -112,11 +136,11 @@ void test_circles(unsigned int ncircles, unsigned int nptspercircle = 10) {
   ASSERT_EQ(nclusters, ncircles);
   ASSERT_EQ(cluster_indices.size(), pts.size());
   //for (unsigned int i = 0; i < npts; ++i)
-    //ASSERT_EQ(cluster_indices[i], i % nptspercircle);
-  barycenters(pts, cluster_indices, nclusters, cluster_centers);
+  //ASSERT_EQ(cluster_indices[i], i % nptspercircle);
+  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
   ASSERT_EQ(cluster_centers.size(), nclusters);
   for (unsigned int i = 0; i < nclusters; ++i)
-    ASSERT_PTS_EQ(cluster_centers[i], Pt2(i, i));
+    ASSERT_PTS_NEAR(cluster_centers[i], Pt2(i, i));
 }
 
 TEST(TestSuite, circles1) { test_circles(1); }
@@ -137,7 +161,7 @@ void test_circle_center(double xc, double yc, double radius,
   Pt2 ans;
   bool ok = best_fit_circle(pts, radius, ans);
   ASSERT_TRUE(ok);
-  ASSERT_PTS_EQ(ans, Pt2(xc, yc), 1E-1);
+  ASSERT_PTS_NEAR(ans, Pt2(xc, yc), 1E-1);
 }
 
 TEST(TestSuite, fullcircle1) { test_circle_center(0,  0, .1,  10, 10); }

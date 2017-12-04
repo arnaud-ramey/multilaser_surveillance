@@ -84,6 +84,7 @@ template<class Pt2>
 static bool barycenters(const std::vector<Pt2> & pts,
                         const std::vector<unsigned int> & cluster_indices,
                         const unsigned int & nclusters,
+                        const unsigned int & min_pts_per_clusters,
                         std::vector<Pt2> & cluster_centers) {
   cluster_centers.clear();
   if (nclusters == 0) {
@@ -106,6 +107,11 @@ static bool barycenters(const std::vector<Pt2> & pts,
   // normalize
   for (unsigned int ci = 0; ci < nclusters; ++ci)
     mult_by(cluster_centers[ci], 1. / cluster_sizes[ci]);
+  // remove clusters that are too small
+  for (int i = cluster_sizes.size()-1; i >= 0; --i) {
+    if (cluster_sizes[i] < min_pts_per_clusters)
+      cluster_centers.erase(cluster_centers.begin()+i);
+  }
   return true;
 } // end barycenters()
 
@@ -181,6 +187,7 @@ template<class Pt2>
 static bool best_fit_circles(const std::vector<Pt2> & pts,
                              const std::vector<unsigned int> & cluster_indices,
                              const unsigned int & nclusters,
+                             const unsigned int & min_pts_per_clusters,
                              const double & radius,
                              std::vector<Pt2> & cluster_centers) {
   cluster_centers.clear();
@@ -197,6 +204,9 @@ static bool best_fit_circles(const std::vector<Pt2> & pts,
       if (cluster_indices[j] == i)
         cluster.push_back(pts[j]);
     } // end for j
+    // discard clusters that are too small
+    if (cluster.size() < min_pts_per_clusters)
+      continue;
     Pt2 center;
     if (!best_fit_circle(cluster, radius, center)) {
       printf( "best_fit_circle() returned an error.\n");
