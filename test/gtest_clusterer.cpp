@@ -24,10 +24,10 @@ TEST(TestSuite, empty) {
   std::vector<unsigned int> cluster_indices;
   cluster_indices.push_back(1);
   unsigned int nclusters = 2;
-  cluster(pts, cluster_indices, nclusters);
+  ASSERT_TRUE(cluster(pts, cluster_indices, nclusters));
   ASSERT_EQ(nclusters, 0);
   ASSERT_EQ(cluster_indices.size(), pts.size());
-  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
+  ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, 0, cluster_centers));
   ASSERT_EQ(cluster_centers.size(), nclusters);
 }
 
@@ -39,11 +39,11 @@ void test_singleton(unsigned int npts) {
     pts.push_back(Pt2(2, 3));
   std::vector<unsigned int> cluster_indices;
   unsigned int nclusters = 2;
-  cluster(pts, cluster_indices, nclusters);
+  ASSERT_TRUE(cluster(pts, cluster_indices, nclusters));
   ASSERT_EQ(nclusters, 1);
   ASSERT_EQ(cluster_indices.size(), pts.size());
   ASSERT_EQ(cluster_indices.front(), 0);
-  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
+  ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, 0, cluster_centers));
   ASSERT_EQ(cluster_centers.size(), nclusters);
   ASSERT_PTS_NEAR(cluster_centers.front(), pts.front());
 }
@@ -60,13 +60,13 @@ TEST(TestSuite, average) {
   pts.push_back(Pt2(2, 3));
   pts.push_back(Pt2(2.1, 3));
   std::vector<unsigned int> cluster_indices;
-  unsigned int nclusters = 1;
-  cluster(pts, cluster_indices, nclusters);
+  unsigned int nclusters = 0;
+  ASSERT_TRUE(cluster(pts, cluster_indices, nclusters));
   ASSERT_EQ(nclusters, 1);
   ASSERT_EQ(cluster_indices.size(), pts.size());
   ASSERT_EQ(cluster_indices.front(), 0);
   ASSERT_EQ(cluster_indices.back(), 0);
-  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
+  ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, 0, cluster_centers));
   ASSERT_EQ(cluster_centers.size(), nclusters);
   ASSERT_PTS_NEAR(cluster_centers.front(), Pt2(2.05, 3));
 }
@@ -80,12 +80,12 @@ TEST(TestSuite, min_pts_per_clusters) {
     pts.push_back(Pt2(2+drand48()/10, 3));
     std::vector<unsigned int> cluster_indices;
     unsigned int nclusters = 0;
-    cluster(pts, cluster_indices, nclusters);
+    ASSERT_TRUE(cluster(pts, cluster_indices, nclusters));
     ASSERT_EQ(nclusters, 1);
     ASSERT_EQ(cluster_indices.size(), pts.size());
     ASSERT_EQ(cluster_indices.front(), 0);
     ASSERT_EQ(cluster_indices.back(), 0);
-    barycenters(pts, cluster_indices, nclusters, min_pts_per_clusters, cluster_centers);
+    ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, min_pts_per_clusters, cluster_centers));
     if (i < min_pts_per_clusters)
       ASSERT_EQ(cluster_centers.size(), 0);
     else {
@@ -102,16 +102,26 @@ void test_remote(unsigned int npts) {
   for (unsigned int i = 0; i < npts; ++i)
     pts.push_back(Pt2(i, i));
   std::vector<unsigned int> cluster_indices;
-  unsigned int nclusters = 1;
-  cluster(pts, cluster_indices, nclusters);
+  unsigned int nclusters = 0;
+  // do it with a small tolerance
+  double cluster_tolerance = 0.1f;
+  ASSERT_TRUE(cluster(pts, cluster_indices, nclusters, cluster_tolerance));
   ASSERT_EQ(nclusters, npts);
   ASSERT_EQ(cluster_indices.size(), pts.size());
   for (unsigned int i = 0; i < npts; ++i)
     ASSERT_EQ(cluster_indices[i], i);
-  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
+  ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, 0, cluster_centers));
   ASSERT_EQ(cluster_centers.size(), nclusters);
   for (unsigned int i = 0; i < npts; ++i)
     ASSERT_PTS_NEAR(cluster_centers[i], pts[i]);
+  // now do it again with a cluster tolerance greater than sqrt(2) => we should get one cluster
+  cluster_tolerance = 1.5;
+  ASSERT_TRUE(cluster(pts, cluster_indices, nclusters, cluster_tolerance));
+  ASSERT_EQ(nclusters, 1);
+  for (unsigned int i = 0; i < npts; ++i)
+    ASSERT_EQ(cluster_indices[i], 0);
+  ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, 0, cluster_centers));
+  ASSERT_PTS_NEAR(cluster_centers[0], Pt2(.5 * (npts-1), .5 * (npts-1) ));
 }
 
 TEST(TestSuite, remote1) { test_remote(1);}
@@ -131,13 +141,13 @@ void test_circles(unsigned int ncircles, unsigned int nptspercircle = 10) {
     } // end for ci
   } // end for pti
   std::vector<unsigned int> cluster_indices;
-  unsigned int nclusters = 1;//, npts = pts.size();
-  cluster(pts, cluster_indices, nclusters);
+  unsigned int nclusters = 0;//, npts = pts.size();
+  ASSERT_TRUE(cluster(pts, cluster_indices, nclusters));
   ASSERT_EQ(nclusters, ncircles);
   ASSERT_EQ(cluster_indices.size(), pts.size());
   //for (unsigned int i = 0; i < npts; ++i)
   //ASSERT_EQ(cluster_indices[i], i % nptspercircle);
-  barycenters(pts, cluster_indices, nclusters, 0, cluster_centers);
+  ASSERT_TRUE(barycenters(pts, cluster_indices, nclusters, 0, cluster_centers));
   ASSERT_EQ(cluster_centers.size(), nclusters);
   for (unsigned int i = 0; i < nclusters; ++i)
     ASSERT_PTS_NEAR(cluster_centers[i], Pt2(i, i));

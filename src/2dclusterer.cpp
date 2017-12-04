@@ -159,11 +159,17 @@ public:
     if (_cluster_centers_pub.getNumSubscribers() == 0)
       return;
     vision_utils::Timer timer;
-    cluster(cloud_msg->points, _cluster_indices,
-            _nclusters, _cluster_tolerance);
-    if (_center_computation_method == CENTER_COMPUTATION_METHOD_BARYCENTER)
-      barycenters(cloud_msg->points, _cluster_indices, _nclusters, _min_pts_per_clusters,
-                  _cluster_centers);
+    if (!cluster(cloud_msg->points, _cluster_indices,
+                 _nclusters, _cluster_tolerance)) {
+      printf( "cluster() returned an error.\n");
+      return;
+    }
+    if (_center_computation_method == CENTER_COMPUTATION_METHOD_BARYCENTER
+        && !barycenters(cloud_msg->points, _cluster_indices, _nclusters,
+                        _min_pts_per_clusters, _cluster_centers)) {
+      printf( "barycenters() returned an error.\n");
+      return;
+    }
     else if (_center_computation_method == CENTER_COMPUTATION_METHOD_FIT_CIRCLE
              && !best_fit_circles(cloud_msg->points, _cluster_indices,
                                   _nclusters, _min_pts_per_clusters,
