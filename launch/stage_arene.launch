@@ -1,16 +1,17 @@
 <launch>
-<!-- pass arg mode:=build to switch to map building mode -->
-<arg name="mode" default="surveillance" />
+<!-- pass arg mode:=build         to build a new map -->
+<!-- pass arg mode:=surveillance  if the map is already built -->
+<!-- pass arg mode:=auto          to build a new map then make surveillance -->
+<arg name="mode" default="auto" />
 
 <!-- do not use Linux wall time but a simulated time -->
 <param name="/use_sim_time" value="true"/>
-<arg name="world" value="arenes"/>
+<arg name="world" value="arene"/>
 
 <!-- find /opt/ros/*/share/stage* -name "*.world" -->
 <node pkg="stage_ros" type="stageros" name="stage" output="screen" required="true"
   args="$(find multilaser_surveillance)/data/$(arg world).world" />
 
-<!-- TF between the floor and the kinect -->
 <arg name="45deg"  value="0.78539816339744830962"/>
 <arg name="225deg" value="3.92699081698724154808"/>
 <arg name="180deg" value="3.14159265358979323846"/>
@@ -19,6 +20,7 @@
 <node pkg="tf" type="static_transform_publisher" name="map2base_tf"
       args="0 0 0  0 0 0   /map  /base_link   100"/>
 
+<!-- TF between the map and each laser link -->
 <node pkg="tf" type="static_transform_publisher" name="laser0tf"
       args="0.5  5.2  0     $(arg 45deg)  0 0   /map  robot_0/odom   100"/>
 <node pkg="tf" type="static_transform_publisher" name="laser1tf"
@@ -41,11 +43,11 @@
 
 <!-- multilaser_surveillance -->
 <node pkg="multilaser_surveillance" type="map_builder_watcher.exe"
-  name="mls" required="true" output="screen">
+  name="mbw" required="true" output="screen">
   <param name="scan_topics" value="/robot_0/base_scan;/robot_1/base_scan;/robot_2/base_scan;/robot_3/base_scan;/robot_4/base_scan;/robot_5/base_scan;/robot_6/base_scan;/robot_7/base_scan;/robot_8/base_scan"/>
   <param name="frames" value="/robot_0/odom;/robot_1/odom;/robot_2/odom;/robot_3/odom;/robot_4/odom;/robot_5/odom;/robot_6/odom;/robot_7/odom;/robot_8/odom"/>
   <param name="mode" value="$(arg mode)"/>
-  <param name="map_prefix" value="$(find multilaser_surveillance)/data/maps/arenes"/>
+  <param name="map_prefix" value="$(find multilaser_surveillance)/data/maps/arene"/>
   <param name="cell2m" value="0.02"/>
   <param name="inflation_radius" value=".10"/>
   <param name="xmin" value="-1"/>
@@ -57,7 +59,7 @@
 <!-- clusterer -->
 <node pkg="multilaser_surveillance" type="2dclusterer.exe"
   name="clusterer" required="true" output="screen">
-  <remap from="cloud" to="outliers"/>
+  <remap from="cloud" to="mbw/outliers"/>
   <param name="cluster_tolerance" value="0.4"/>
   <param name="center_computation_method" value="fit"/>
   <!-- sizes: 0.440 x 0.380, so min radius=0.19, and max radius=hypot=0.29, we take average=0.245 -->
@@ -65,21 +67,27 @@
 </node>
 
 <!-- Bayesian filter -->
+<remap from="/people_tracker/marker_array" to="tracker/marker_array" />
+<remap from="/people_tracker/pose_array" to="tracker/pose_array" />
+<remap from="/people_tracker/pose" to="tracker/pose" />
 <rosparam command="load" file="$(find multilaser_surveillance)/config/detectors.yaml"/>
-<node pkg="bayes_people_tracker" type="bayes_people_tracker" name="bayes_people_tracker" output="screen" respawn="true">
+<node pkg="bayes_people_tracker" type="bayes_people_tracker" name="tracker"
+      output="screen" respawn="true">
     <param name="target_frame" value="/map"/>
 </node>
 
 <!-- pose_matcher -->
 <node pkg="multilaser_surveillance" type="pose_matcher.exe"
   name="pose_matcher" required="true" output="screen">
-  <remap from="/pose_matcher/estimated_poses" to="/people_tracker/pose_array"/>
+  <remap from="pose_matcher/estimated_poses" to="tracker/pose_array"/>
   <param name="ground_truth_topics" value="/robot_9/odom;/robot_10/odom;/robot_11/odom"/>
 </node>
 
 <!-- pose_matcher plot -->
+<!--
 <node pkg="rqt_plot" type="rqt_plot" name="dist_plot"
-      args="/pose_matcher/dist"/>
+      args="pose_matcher/dist"/>
+-->
 
 <!-- rviz
 $ rosrun image_view image_view image:=/robot_4/image

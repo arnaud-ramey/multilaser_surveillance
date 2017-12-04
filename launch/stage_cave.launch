@@ -24,7 +24,7 @@
 <node pkg="tf" type="static_transform_publisher" name="map2base_tf"
       args="0 0 0  0 0 0   /map  /base_link   100"/>
 
-<!-- TF between the floor and the kinect -->
+<!-- TF between the map and each laser link -->
 <node pkg="tf" type="static_transform_publisher" name="laser0tf"
       args="-7.6 -7.6 0   0.785 0 0   map  robot_0/odom   100"/>
 <node pkg="tf" type="static_transform_publisher" name="laser1tf"
@@ -46,50 +46,54 @@
 <!-- clusterer -->
 <node pkg="multilaser_surveillance" type="2dclusterer.exe"
   name="clusterer" required="true" output="screen">
-  <remap from="cloud" to="outliers"/>
+  <remap from="cloud" to="mbw/outliers"/>
   <param name="cluster_tolerance" value="0.7"/>
 </node>
 
+<!-- Bayesian filter -->
+<remap from="/people_tracker/marker_array" to="tracker/marker_array" />
+<remap from="/people_tracker/pose_array" to="tracker/pose_array" />
+<remap from="/people_tracker/pose" to="tracker/pose" />
+<rosparam command="load" file="$(find multilaser_surveillance)/config/detectors.yaml"/>
+<node pkg="bayes_people_tracker" type="bayes_people_tracker" name="tracker"
+      output="screen" respawn="true">
+  <param name="target_frame" value="/map"/>
+</node>
+
+<!-- pose_matcher -->
+<node pkg="multilaser_surveillance" type="pose_matcher.exe"
+  name="pose_matcher" required="true" output="screen">
+  <remap from="pose_matcher/estimated_poses" to="tracker/pose_array"/>
+  <param name="ground_truth_topics" value="/robot_4/odom;/robot_5/odom;/robot_6/odom"/>
+</node>
+
 <!-- euclidean matcher -->
+<!--
 <node pkg="people_recognition_vision" type="euclidean_pplm.exe"
       name="euclidean_pplm"  output="screen" respawn="true" args="">
   <param name="autostart" value="true"/>
 </node>
+-->
 <!-- multitrack Kalman filter -->
+<!--
 <node pkg="people_recognition_vision" type="ukf_multimodal.exe"
   name="ukf_multimodal" required="true" output="screen">
   <param name="autostart" value="true"/>
-  <param name="human_walking_speed" value="5"/> <!-- m/s-->
+  <param name="human_walking_speed" value="5"/>
   <param name="ppl_input_topics" value="cluster_ppl"/>
   <param name="ppl_matcher_services" value="euclidean_pplm/match_ppl"/>
 </node>
+-->
 <!-- conversion from tracks to ROS rviz marker -->
+<!--
 <node pkg="vision_utils_tests" type="ppl2marker.exe"
       output="screen" name="ukf_ppl2marker"
       args="_red:=1 _green:=0 _blue:=0 _input_topic:=/ukf_multimodal/ppl" />
-
-<!-- Bayesian filter -->
-<!--
-<rosparam command="load" file="$(find multilaser_surveillance)/config/detectors.yaml"/>
-<node pkg="bayes_people_tracker" type="bayes_people_tracker" name="bayes_people_tracker" output="screen" respawn="true">
-    <param name="target_frame" value="/map"/>
-</node>
--->
-
-<!-- pose_matcher -->
-<!--
-<node pkg="multilaser_surveillance" type="pose_matcher.exe"
-  name="pose_matcher" required="true" output="screen">
-  <remap from="/pose_matcher/estimated_poses" to="/people_tracker/pose_array"/>
-  <param name="ground_truth_topics" value="/robot_4/odom;/robot_5/odom;/robot_6/odom"/>
-</node>
 -->
 
 <!-- pose_matcher plot -->
-<!--
 <node pkg="rqt_plot" type="rqt_plot" name="dist_plot"
-      args="/pose_matcher/dist"/>
--->
+      args="pose_matcher/dist"/>
 
 <!-- rviz
 $ rosrun image_view image_view image:=/robot_4/image -->

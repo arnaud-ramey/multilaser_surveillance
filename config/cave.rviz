@@ -182,10 +182,18 @@ Visualization Manager:
       Value: false
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /marker
-      Name: Marker
+      Marker Topic: /mbw/marker
+      Name: MBWMarker
       Namespaces:
         devices: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /clusterer/marker
+      Name: ClustererMarker
+      Namespaces:
+        clusters: true
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -213,7 +221,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Points
-      Topic: /scan
+      Topic: /mbw/scan
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -256,6 +264,7 @@ Visualization Manager:
       Name: Map
       Topic: /map
       Unreliable: false
+      Use Timestamp: false
       Value: true
     - Alpha: 0.699999988
       Class: rviz/Map
@@ -263,8 +272,9 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: MapSurveillance
-      Topic: /map_surveillance
+      Topic: /mbw/map_surveillance
       Unreliable: false
+      Use Timestamp: false
       Value: true
     - Alpha: 1
       Arrow Length: 1
@@ -279,21 +289,13 @@ Visualization Manager:
       Shaft Length: 0.230000004
       Shaft Radius: 0.00999999978
       Shape: Arrow (Flat)
-      Topic: /cluster_centers
+      Topic: /clusterer/cluster_centers
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
       Marker Topic: /people_tracker/marker_array
       Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /ppl_marker
-      Name: Marker
       Namespaces:
         {}
       Queue Size: 100
@@ -322,7 +324,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 29.2190418
+      Distance: 31.2081661
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
@@ -334,12 +336,13 @@ Visualization Manager:
         Z: 0.300168425
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
+      Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.704796553
+      Pitch: 1.49979627
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.425385
+      Yaw: 4.75038385
     Saved: ~
 Window Geometry:
   Displays:

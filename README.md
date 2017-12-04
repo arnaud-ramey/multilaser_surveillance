@@ -72,14 +72,14 @@ Run
   The map is automatically saved in `multilaser_surveillance/data/maps`.
 
 ```bash
-$ roslaunch multilaser_surveillance stage_arenes.launch  mode:=build
+$ roslaunch multilaser_surveillance stage_arene.launch  mode:=build
 ```
 
   2) Perform surveillance.
   The map is loaded from the same folder.
 
 ```bash
-$ roslaunch multilaser_surveillance stage_arenes.launch
+$ roslaunch multilaser_surveillance stage_arene.launch
 ```
 
 
@@ -130,27 +130,27 @@ Subscriptions
   * `$(scan_topics) [sensor_msgs/LaserScan]`
     The different scan streams published by the laser range finders.
 
-  * `/tf [tf2_msgs/TFMessage]`
+  * `~tf [tf2_msgs/TFMessage]`
     The transforms between the frame of each scan and the `static_frame`.
 
 Publications
 ------------
 
-  * `/map [nav_msgs/OccupancyGrid]`
+  * `~map [nav_msgs/OccupancyGrid]`
     The map, shaped as an occupancy grid.
     Rate: max 1 Hz.
 
-  * `/marker [visualization_msgs/Marker]`
+  * `~marker [visualization_msgs/Marker]`
     A marker showing the outliers as a red point cloud,
     and the devices as arrows.
     Rate: max 1 Hz.
 
-  * `/outliers [sensor_msgs/PointCloud]`
+  * `~outliers [sensor_msgs/PointCloud]`
     ONLY IN SURVEILLANCE MDOE.
     The point cloud of all points not belonging to the map.
     Rate: upon reception of each scan, max 100 Hz.
 
-  * `/scan [sensor_msgs/PointCloud]`
+  * `~scan [sensor_msgs/PointCloud]`
     The merged scan of all lasers.
     Rate: upon reception of each scan, max 100 Hz.
 
@@ -186,17 +186,17 @@ Parameters
 Subscriptions
 -------------
 
-  * `/cloud [sensor_msgs/PointCloud]`
+  * `~cloud [sensor_msgs/PointCloud]`
     The 2D point cloud to cluster, in `(x, y)`.
 
 Publications
 ------------
 
-  * `/cluster_centers [geometry_msgs/PoseArray]`
+  * `~cluster_centers [geometry_msgs/PoseArray]`
     The array containing the center of each cluster.
     For each center, the orientation is set to 0.
 
-  * `/marker [visualization_msgs/Marker]`
+  * `~marker [visualization_msgs/Marker]`
     A marker showing the clusters as a colored point cloud,
     where the color corresponds to the cluster ID.
     Rate: upon reception of each PointCloud.
@@ -268,8 +268,8 @@ mtrk.process(*(det.ctm), det.alg, 5, .5);
 One-liner:
 
 ```bash
-$ sed  -i 's/it->second.alg/it->second.alg, 5, .5/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
-$ sed  -i 's/det.alg/det.alg, 5, .5/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ sed  -i 's/, it->second.alg/it, ->second.alg, 5, .5/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
+$ sed  -i 's/, det.alg/, det.alg, 5, .5/g' `rospack find bayes_people_tracker`/include/bayes_people_tracker/simple_tracking.h
 $ catkin_make
 ```
 
