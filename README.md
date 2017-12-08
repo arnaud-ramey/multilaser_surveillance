@@ -130,7 +130,7 @@ Subscriptions
   * `$(scan_topics) [sensor_msgs/LaserScan]`
     The different scan streams published by the laser range finders.
 
-  * `~tf [tf2_msgs/TFMessage]`
+  * `/tf [tf2_msgs/TFMessage]`
     The transforms between the frame of each scan and the `static_frame`.
 
 Publications

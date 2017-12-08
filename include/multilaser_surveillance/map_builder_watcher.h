@@ -143,10 +143,10 @@ public:
     unsigned int npts = scan.size();
     for (unsigned int i = 0; i < npts; ++i) {
       Pt2 & pt = d->_last_scan[i];
-      if (!_obstacle_map.is_occupied(pt)) {
-        // DEBUG_PRINT("Found outlier (%g, %g)!\n", pt.x, pt.y);
-        d->_outliers.push_back(pt);
-      }
+      if (_obstacle_map.is_occupied(pt))
+        continue;
+      // DEBUG_PRINT("Found outlier (%g, %g)!\n", pt.x, pt.y);
+      d->_outliers.push_back(pt);
     } // end for i
     return true;
   }

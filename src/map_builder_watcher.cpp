@@ -284,6 +284,7 @@ protected:
     _marker_timer.reset();
     _marker_msg.ns = "devices";
     _marker_msg.header.stamp = ros::Time::now();
+    _marker_msg.points.clear();
     _marker_msg.type = visualization_msgs::Marker::ARROW;
     _marker_msg.action = visualization_msgs::Marker::ADD;
     _marker_msg.pose.position.z = 0;
