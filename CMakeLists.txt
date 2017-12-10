@@ -45,8 +45,10 @@ target_link_libraries(pose_matcher.exe  ${catkin_LIBRARIES})
 
 
 ### 8 - Tests to build (catkin_add_gtest())
-catkin_add_gtest(gtest_clusterer  test/gtest_clusterer.cpp)
-target_link_libraries(gtest_clusterer  lmfit  ${catkin_LIBRARIES})
+catkin_add_gtest(gtest_clusterer        test/gtest_clusterer.cpp)
+target_link_libraries(gtest_clusterer   lmfit  ${catkin_LIBRARIES})
+catkin_add_gtest(gtest_map_builder_watcher       test/gtest_map_builder_watcher.cpp)
+target_link_libraries(gtest_map_builder_watcher  ${catkin_LIBRARIES})
 ### 9 - Install rules (install())
 install(DIRECTORY include/${PROJECT_NAME}/
    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

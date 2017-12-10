@@ -15,12 +15,12 @@ public:
     MODE_SURVEILLANCE = 1,
     MODE_AUTO_BUILD_MAP = 2,
   };
-  static const unsigned int MAP_NSCANS_PER_DEVICE = 1000;
 
   //////////////////////////////////////////////////////////////////////////////
 
   class SurveillanceDevice {
   public:
+    //! orien: CCW angle, in radians
     SurveillanceDevice(const std::string & name,
                        const Pt2 & pos,
                        const double & orien) :
@@ -59,6 +59,7 @@ public:
   MapBuilderWatcher() {
     _mode = MODE_SURVEILLANCE; // safe value
     _map_total_nscans = 0;
+    _auto_mode_timeout = 10;
     _need_recompute_scan = true;
     _need_recompute_outliers = true;
   }
@@ -93,22 +94,44 @@ public:
   //////////////////////////////////////////////////////////////////////////////
 
   inline unsigned int ndevices() const { return _devices.size(); }
+  inline double get_auto_mode_timeout() const   { return _auto_mode_timeout; }
+  inline void   set_auto_mode_timeout(double t) { _auto_mode_timeout = t; }
+  inline double get_mode() const   { return _mode; }
+  inline void   set_mode(Mode m) { _mode = m; }
+  inline const LiteObstacleMap & get_obstacle_map() const   { return _obstacle_map; }
+  inline unsigned int noutliers()    {
+    recompute_outliers_if_needed();
+    return _outliers.size();
+  }
+  inline const Scan & get_outliers() {
+    recompute_outliers_if_needed();
+    return _outliers;
+  }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  bool fine_tune_devices(const Map & map) {
-    for (unsigned int i = 0; i < ndevices(); ++i) {
-      // TODO
-    } // end for i
-    return false; // failure
-  } // end fine_tune_devices()
+  inline bool create_map(const double & xmin, const double & ymin,
+                         const double & xmax, const double & ymax,
+                         const double & pix2m, const double & inflation_radius) {
+    return _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
+  }
 
   //////////////////////////////////////////////////////////////////////////////
 
-  bool update_scan(unsigned int & device_idx,
+  //! check if we need to change mode
+  inline void check_auto_mode() {
+    if (_mode == MODE_AUTO_BUILD_MAP && _life_timer.getTimeSeconds() >= _auto_mode_timeout) {
+      printf("Mode timeout, changing from MODE_BUILD_MAP -> MODE_SURVEILLANCE\n");
+      _mode = MODE_SURVEILLANCE;
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  bool update_scan(const unsigned int & device_idx,
                    const Scan & scan) {
     if (device_idx >= ndevices()) {
-      printf("Error: device_idx %i > ndevices %i\n", device_idx, ndevices());
+      printf("Error: device_idx=%i >= ndevices=%i\n", device_idx, ndevices());
       return false;
     }
     // DEBUG_PRINT("update_scan(%i)\n", device_idx);
@@ -116,11 +139,7 @@ public:
     SurveillanceDevice* d = &(_devices[device_idx]);
     d->set_last_scan(scan);
 
-    //check if we need to change mode
-    if (_mode == MODE_AUTO_BUILD_MAP && _life_timer.getTimeSeconds() >= _auto_mode_timeout) {
-      printf("Mode timeout, changing from MODE_BUILD_MAP -> MODE_SURVEILLANCE\n");
-      _mode = MODE_SURVEILLANCE;
-    }
+    check_auto_mode();
     // aggregate scan if map not done
     if (_mode == MODE_BUILD_MAP || _mode == MODE_AUTO_BUILD_MAP) {
       // compute real map
@@ -145,7 +164,7 @@ public:
       Pt2 & pt = d->_last_scan[i];
       if (_obstacle_map.is_occupied(pt))
         continue;
-      // DEBUG_PRINT("Found outlier (%g, %g)!\n", pt.x, pt.y);
+      DEBUG_PRINT("Found outlier (%g, %g)!\n", pt.x, pt.y);
       d->_outliers.push_back(pt);
     } // end for i
     return true;

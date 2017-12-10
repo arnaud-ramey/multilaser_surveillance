@@ -6,15 +6,15 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-//#define DEBUG_PRINT(...)   {}
-#define DEBUG_PRINT(...)   printf(__VA_ARGS__)
+#define DEBUG_PRINT(...)   {}
+//#define DEBUG_PRINT(...)   printf(__VA_ARGS__)
 #define DEFAULT_PIX2M             .05 // 1 pixel = 5 cm
 #define DEFAULT_INFLATION_RADIUS  .10 // 10 cm
 
 class LiteObstacleMap {
 public:
   LiteObstacleMap() {
-    create(-10, 10, -10, 10);
+    create(-10, -10, 10, 10);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -79,8 +79,15 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  void create(double xmin, double ymin, double xmax, double ymax,
+  bool create(double xmin, double ymin, double xmax, double ymax,
               double pix2m = DEFAULT_PIX2M, double inflation_radius = DEFAULT_INFLATION_RADIUS) {
+    if (xmin > xmax || ymin > ymax
+        || fabs(xmin - xmax) < pix2m || fabs(ymin - ymax) < pix2m) {
+      printf("create(): incorrect values: xwin:(%g, %g), ywin:(%g, %g), "
+             "pix2m:%g m/pix, inflation_radius:%g m\n",
+             xmin, xmax, ymin, ymax, pix2m, inflation_radius);
+      return false;
+    }
     _xmin = xmin;
     _xmax = xmax;
     _ymin = ymin;
@@ -91,11 +98,13 @@ public:
     // reset map
     _w = 1 + (_xmax - _xmin) * _m2pix;
     _h = 1 + (_ymax - _ymin) * _m2pix;
-    DEBUG_PRINT("LiteObstacleMap::create(): bounds (%g,%g)->(%g,%g), dims(%i,%i)\n",
-                _xmin, _ymin, _xmax, _ymax, _w, _h);
+    DEBUG_PRINT("LiteObstacleMap::create(): bounds (%g m, %g m)->(%g m, %g m), "
+                "dims(%i px,%i px), pix2m:%g m/pix, inflation_radius:%g m\n",
+                _xmin, _ymin, _xmax, _ymax, _w, _h, _pix2m, _inflation_radius);
     _map_as_img.create(_h, _w);
     _map_as_img.setTo(0);
     _map_as_img.copyTo(_inflated_map_as_img);
+    return true;
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -106,8 +115,11 @@ public:
     unsigned int npts = obstacles.size();
     for (unsigned int i = 0; i < npts; ++i) {
       const Pt2* curr = &(obstacles[i]);
-      if (curr->x > _xmin && curr->x < _xmax && curr->y > _ymin && curr->y < _ymax)
+      //printf("curr:(%g, %g), xwin:(%g, %g), ywin:(%g, %g)\n", curr->x, curr->y, _xmin, _xmax, _ymin, _ymax);
+      if (curr->x > _xmin && curr->x < _xmax && curr->y > _ymin && curr->y < _ymax) {
+        //printf("Adding (%g, %g) to map\n", curr->x, curr->y);
         _map_as_img( m2pix(*curr) ) = 255;
+      }
     } // end for i
     //cv::imshow("LiteObstacleMap", _map_as_img); cv::waitKey(500);
     inflate();
@@ -142,13 +154,19 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  inline unsigned int get_width() const  { return _w; }
-  inline unsigned int get_height() const { return _h; }
-  inline double get_xmin() const         { return _xmin; }
-  inline double get_ymin() const         { return _ymin; }
-  inline double get_xmax() const         { return _xmax; }
-  inline double get_ymax() const         { return _ymax; }
-  inline double get_pix2m() const        { return _pix2m; }
+  inline unsigned int get_width() const    { return _w; }
+  inline unsigned int get_height() const   { return _h; }
+  inline double get_xmin() const           { return _xmin; }
+  inline double get_ymin() const           { return _ymin; }
+  inline double get_xmax() const           { return _xmax; }
+  inline double get_ymax() const           { return _ymax; }
+  inline double get_pix2m() const          { return _pix2m; }
+  inline int get_occupied_cells() const {
+    return cv::countNonZero(_map_as_img);
+  }
+  inline int get_occupied_inflated_cells() const {
+    return cv::countNonZero(_inflated_map_as_img);
+  }
 
   //////////////////////////////////////////////////////////////////////////////
 protected:
@@ -171,8 +189,7 @@ protected:
                                                  cv::Size( 2*radpix + 1, 2*radpix+1 ),
                                                  cv::Point( radpix, radpix ) );
     cv::dilate(_map_as_img, _inflated_map_as_img, element);
-    //_map_as_img.copyTo(_inflated_map_as_img);
-    //cv::imshow("LiteObstacleMap-inflated", _map_as_img); cv::waitKey(500);
+    //cv::imshow("LiteObstacleMap-inflated", _inflated_map_as_img); cv::waitKey(0);
     return true;
   }
 

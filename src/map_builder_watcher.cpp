@@ -107,7 +107,7 @@ public:
         _nh_private.param("ymax", ymax, 10.);
         _nh_private.param("pix2m", pix2m, DEFAULT_PIX2M);
         // init map
-        _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
+        create_map(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
       }
 
       ROS_INFO("%s, static_frame:'%s', map_prefix:'%s', "
