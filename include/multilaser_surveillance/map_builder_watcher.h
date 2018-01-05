@@ -73,32 +73,15 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  bool recompute_scan_if_needed() {
-    if (!_need_recompute_scan)
-      return false;
-    // DEBUG_PRINT("recompute_scan_if_needed()\n");
-    _need_recompute_scan = false;
-    // compute size
-    unsigned int size = 0;
-    for (unsigned int i = 0; i < ndevices(); ++i)
-      size += _devices[i]._last_scan.size();
-    _scan.clear();
-    _scan.reserve(size);
-    for (unsigned int i = 0; i < ndevices(); ++i) {
-      SurveillanceDevice* d = &(_devices[i]);
-      std::copy(d->_last_scan.begin(), d->_last_scan.end(), std::back_inserter(_scan));
-    } // end for i
-    return true;
-  }
-
-  //////////////////////////////////////////////////////////////////////////////
-
   inline unsigned int ndevices() const { return _devices.size(); }
   inline double get_auto_mode_timeout() const   { return _auto_mode_timeout; }
   inline void   set_auto_mode_timeout(double t) { _auto_mode_timeout = t; }
   inline double get_mode() const   { return _mode; }
   inline void   set_mode(Mode m) { _mode = m; }
-  inline const LiteObstacleMap & get_obstacle_map() const   { return _obstacle_map; }
+  inline const LiteObstacleMap & get_obstacle_map() {
+    recompute_outliers_if_needed();
+    return _obstacle_map;
+  }
   inline unsigned int noutliers()    {
     recompute_outliers_if_needed();
     return _outliers.size();
@@ -110,9 +93,10 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////
 
-  inline bool create_map(const double & xmin, const double & ymin,
-                         const double & xmax, const double & ymax,
-                         const double & pix2m, const double & inflation_radius) {
+  inline bool create_map(double xmin, double ymin,
+                         double xmax, double ymax,
+                         double pix2m = DEFAULT_PIX2M,
+                         double inflation_radius = DEFAULT_INFLATION_RADIUS) {
     return _obstacle_map.create(xmin, ymin, xmax, ymax, pix2m, inflation_radius);
   }
 
@@ -189,6 +173,26 @@ protected:
       SurveillanceDevice* d = &(_devices[i]);
       std::copy(d->_outliers.begin(), d->_outliers.end(), std::back_inserter(_outliers));
       _outlier_laser_ids.insert(_outlier_laser_ids.end(), d->_outliers.size(), i);
+    } // end for i
+    return true;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  bool recompute_scan_if_needed() {
+    if (!_need_recompute_scan)
+      return false;
+    // DEBUG_PRINT("recompute_scan_if_needed()\n");
+    _need_recompute_scan = false;
+    // compute size
+    unsigned int size = 0;
+    for (unsigned int i = 0; i < ndevices(); ++i)
+      size += _devices[i]._last_scan.size();
+    _scan.clear();
+    _scan.reserve(size);
+    for (unsigned int i = 0; i < ndevices(); ++i) {
+      SurveillanceDevice* d = &(_devices[i]);
+      std::copy(d->_last_scan.begin(), d->_last_scan.end(), std::back_inserter(_scan));
     } // end for i
     return true;
   }

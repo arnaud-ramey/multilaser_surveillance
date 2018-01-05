@@ -58,7 +58,7 @@ $ wstool init
 $ wstool merge `rospack find multilaser_surveillance`/dependencies.rosinstall
 $ wstool update
 $ rosdep install multilaser_surveillance --ignore-src
-$ catkin_make --only-pkg-with-deps multilaser_surveillance
+$ roscd ; catkin_make --only-pkg-with-deps multilaser_surveillance
 ```
 
 

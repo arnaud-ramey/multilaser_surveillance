@@ -6,8 +6,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#define DEBUG_PRINT(...)   {}
-//#define DEBUG_PRINT(...)   printf(__VA_ARGS__)
+//#define DEBUG_PRINT(...)   {}
+#define DEBUG_PRINT(...)   printf(__VA_ARGS__)
 #define DEFAULT_PIX2M             .05 // 1 pixel = 5 cm
 #define DEFAULT_INFLATION_RADIUS  .10 // 10 cm
 

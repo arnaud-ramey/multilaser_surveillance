@@ -63,6 +63,9 @@ TEST(TestSuite, empty) {
 
 TEST(TestSuite, update_no_device) {
   MBW mbw;
+  ASSERT_EQ(MBW::MODE_SURVEILLANCE, mbw.get_mode());
+  ASSERT_EQ(0, mbw.get_outliers().size());
+  ASSERT_EQ(0, mbw.get_obstacle_map().get_occupied_cells());
   MBW::Scan scan;
   for (unsigned int i = 0; i < 10; ++i) {
     ASSERT_NO_FATAL_FAILURE();
@@ -90,10 +93,25 @@ TEST(TestSuite, mode_change) {
   ASSERT_EQ(MBW::MODE_SURVEILLANCE, mbw.get_mode());
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TEST(TestSuite, save_load) {
+  MBW mbw;
+  mbw.add_device( MBW::SurveillanceDevice ("d", Pt2(0,0), 0));
+  mbw.set_mode(MBW::MODE_BUILD_MAP);
+  ASSERT_TRUE(mbw.create_map(-20, -20, 20, 20));
+  MBW::Scan scan;
+  scan.push_back(Pt2(1, 0));
+  ASSERT_TRUE(mbw.update_scan(0, scan));
+  ASSERT_EQ(1, mbw.get_obstacle_map().get_occupied_cells());
+  ASSERT_TRUE(mbw.get_obstacle_map().save("/tmp/gtest_mbw"));
+  LiteObstacleMap map;
+  ASSERT_TRUE(map.load("/tmp/gtest_mbw"));
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TEST(TestSuite, simple_square) {
+TEST(TestSuite, simple_point) {
   for (int ntries = 0; ntries < 10; ++ntries) {
     Pt2 t(-5  + rand()%10, -5  + rand()%10);
     double infr = 1E-2 * (10 + rand()%100), pix2m = .01;
@@ -136,7 +154,43 @@ TEST(TestSuite, simple_square) {
     ASSERT_EQ(1, outliers.size());
     ASSERT_PTS_NEAR(outlier1w, outliers.front());
   } // end for ntries
-}
+} // end TEST
+
+////////////////////////////////////////////////////////////////////////////////
+
+TEST(TestSuite, simple_circle) {
+  unsigned int ndevices = 3;
+  for (int ntries = 0; ntries < 10; ++ntries) {
+    Pt2 t(-5  + rand()%10, -5  + rand()%10);
+    double infr = .1, pix2m = .01;
+    MBW mbw;
+    ASSERT_TRUE(mbw.create_map(-15, -15, 15, 15, pix2m, infr));// init map
+    for (unsigned int i = 0; i < ndevices; ++i) // create devices
+      mbw.add_device( MBW::SurveillanceDevice ("d", t, 360. * i * DEG2RAD / ndevices) );
+    mbw.set_mode(MBW::MODE_AUTO_BUILD_MAP);
+    mbw.set_auto_mode_timeout(1); // 1000 ms
+    // half circle scan
+    MBW::Scan scan;
+    double radius = 1 + drand48(), fov = 360. / ndevices;
+    for (int deg = -fov/2; deg <= fov/2; ++deg) {
+      scan.push_back(Pt2(radius * cos(deg * DEG2RAD), radius * sin(deg * DEG2RAD)));
+      //printf("Adding (%g, %g)\n", scan.back().x, scan.back().y);
+    } // end for deg
+    for (unsigned int i = 0; i < ndevices; ++i)
+      ASSERT_TRUE(mbw.update_scan(i, scan));
+    ASSERT_TRUE(mbw.get_obstacle_map().save("/tmp/gtest_mbw"));
+    // square around (1, 1)
+    int exp_cells = 2. * M_PI * radius / pix2m;
+    ASSERT_NEAR(exp_cells, mbw.get_obstacle_map().get_occupied_cells(), 1);
+    double surface = M_PI * (pow(radius + infr, 2) - pow(radius - infr, 2));
+    int exp_inflated_cells = surface / pix2m;
+    ASSERT_NEAR(exp_inflated_cells, mbw.get_obstacle_map().get_occupied_inflated_cells(), 1);
+    // now switch mode
+    usleep(1100E3); // 110 ms
+    mbw.check_auto_mode();
+    ASSERT_EQ(MBW::MODE_SURVEILLANCE, mbw.get_mode());
+  } // end for ntries
+} // end TEST
 
 ////////////////////////////////////////////////////////////////////////////////
 
